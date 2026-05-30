@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UJEEBN · Admin Dashboard</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0D0D0D">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="UJEEBN Admin">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     PAGE LOGIN
+═══════════════════════════════════════════ -->
+<div id="auth-page" class="auth-page">
+  <div class="auth-bg-glow"></div>
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="auth-logo-mark">U</div>
+      <div>
+        <div class="auth-brand-name">UJEEBN</div>
+        <div class="auth-brand-sub">Camp Biblique 2026</div>
+      </div>
+    </div>
+    <h1 class="auth-title">Accès Admin</h1>
+    <p class="auth-hint">Dosso · 02 – 07 Août 2026</p>
+
+    <div class="field-group">
+      <label>Identifiant</label>
+      <div class="field-wrap">
+        <span class="material-icons-round field-icon">person</span>
+        <input type="text" id="login-username" placeholder="admin" autocomplete="off">
+      </div>
+    </div>
+    <div class="field-group">
+      <label>Mot de passe</label>
+      <div class="field-wrap">
+        <span class="material-icons-round field-icon">lock</span>
+        <input type="password" id="login-password" placeholder="••••••••">
+      </div>
+    </div>
+
+    <button id="login-btn" class="btn-login">
+      <span>Se connecter</span>
+      <span class="material-icons-round">arrow_forward</span>
+    </button>
+    <p class="auth-lock">🔐 Accès réservé aux organisateurs</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     APP SHELL (Dashboard)
+═══════════════════════════════════════════ -->
+<div id="app" class="app" style="display:none;">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">U</div>
+      <div class="brand-text">
+        <span class="brand-name">UJEEBN</span>
+        <span class="brand-event">Camp 2026</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Principal</div>
+      <button class="nav-item active" data-view="dashboard">
+        <span class="material-icons-round">dashboard</span>
+        <span>Dashboard</span>
+      </button>
+      <button class="nav-item" data-view="participants">
+        <span class="material-icons-round">group</span>
+        <span>Participants</span>
+        <span class="nav-badge" id="nav-badge-total">0</span>
+      </button>
+      <button class="nav-item" data-view="tickets">
+        <span class="material-icons-round">confirmation_number</span>
+        <span>Tickets</span>
+      </button>
+
+      <div class="nav-section-label">Outils</div>
+      <button class="nav-item" data-view="import">
+        <span class="material-icons-round">upload_file</span>
+        <span>Importer CSV</span>
+      </button>
+      <button class="nav-item" data-view="scanner">
+        <span class="material-icons-round">qr_code_scanner</span>
+        <span>Scanner QR</span>
+        <span class="nav-badge badge-accent">LIVE</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="user-avatar">A</div>
+        <div class="user-info">
+          <span class="user-name">Admin</span>
+          <span class="user-role">Organisateur</span>
+        </div>
+      </div>
+      <button id="logout-btn" class="btn-logout" title="Déconnexion">
+        <span class="material-icons-round">logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── CONTENU PRINCIPAL ── -->
+  <main class="main-content">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <button class="topbar-menu-btn" id="sidebar-toggle">
+        <span class="material-icons-round">menu</span>
+      </button>
+      <div class="topbar-title" id="topbar-title">Dashboard</div>
+      <div class="topbar-actions">
+        <div class="topbar-event-badge">
+          <span class="material-icons-round">event</span>
+          Dosso · Août 2026
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ VUE : DASHBOARD ════ -->
+    <div id="view-dashboard" class="view active">
+      <div class="view-header">
+        <div>
+          <h2 class="view-title">Tableau de bord</h2>
+          <p class="view-subtitle">Aperçu en temps réel du Camp Biblique 2026</p>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-primary">
+          <div class="kpi-icon"><span class="material-icons-round">groups</span></div>
+          <div class="kpi-value" id="kpi-total">0</div>
+          <div class="kpi-label">Participants inscrits</div>
+          <div class="kpi-trend">Camp Biblique 36ème édition</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon"><span class="material-icons-round">confirmation_number</span></div>
+          <div class="kpi-value" id="kpi-tickets">0</div>
+          <div class="kpi-label">Tickets générés</div>
+          <div class="kpi-trend" id="kpi-tickets-pct">— % des inscrits</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon"><span class="material-icons-round">qr_code_scanner</span></div>
+          <div class="kpi-value" id="kpi-scanned">0</div>
+          <div class="kpi-label">Entrées validées</div>
+          <div class="kpi-trend" id="kpi-scanned-pct">— % présents</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon"><span class="material-icons-round">pending</span></div>
+          <div class="kpi-value" id="kpi-pending">0</div>
+          <div class="kpi-label">En attente de ticket</div>
+          <div class="kpi-trend">Tickets non encore générés</div>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="progress-section">
+        <div class="progress-card">
+          <div class="progress-header">
+            <span>Taux de présence</span>
+            <span id="progress-label">0 / 0</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="progress-card">
+          <div class="progress-header">
+            <span>Tickets générés</span>
+            <span id="progress-tickets-label">0 / 0</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill yellow" id="progress-tickets-fill" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Derniers inscrits -->
+      <div class="section-card">
+        <div class="section-card-header">
+          <h3>Derniers inscrits</h3>
+          <button class="btn-text" data-view="participants">Voir tous →</button>
+        </div>
+        <div id="recent-participants" class="recent-list"></div>
+      </div>
+    </div>
+
+    <!-- ════ VUE : PARTICIPANTS ════ -->
+    <div id="view-participants" class="view">
+      <div class="view-header">
+        <div>
+          <h2 class="view-title">Participants</h2>
+          <p class="view-subtitle">Gérez la liste des inscrits</p>
+        </div>
+        <div class="view-header-actions">
+          <button class="btn-icon-text" id="open-manual-btn">
+            <span class="material-icons-round">person_add</span> Ajouter
+          </button>
+          <button class="btn-icon-text btn-danger" id="delete-all-btn">
+            <span class="material-icons-round">delete_sweep</span> Tout supprimer
+          </button>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-toolbar">
+          <div class="search-wrap">
+            <span class="material-icons-round">search</span>
+            <input type="text" id="search-input" placeholder="Rechercher par nom, église…">
+          </div>
+          <div class="filter-chips">
+            <button class="chip active" data-filter="all">Tous</button>
+            <button class="chip" data-filter="scanned">Scannés</button>
+            <button class="chip" data-filter="ticket">Ticket prêt</button>
+            <button class="chip" data-filter="pending">En attente</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Nom</th>
+                <th>Église</th>
+                <th>Date de naissance</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="participants-tbody">
+            </tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span id="table-count">0 participant(s)</span>
+          <button id="generate-all-btn" class="btn-generate">
+            <span class="material-icons-round">auto_awesome</span> Générer tous les tickets
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ VUE : TICKETS ════ -->
+    <div id="view-tickets" class="view">
+      <div class="view-header">
+        <div>
+          <h2 class="view-title">Tickets</h2>
+          <p class="view-subtitle">Prévisualisez et téléchargez les tickets</p>
+        </div>
+      </div>
+      <div class="tickets-grid" id="tickets-grid">
+        <!-- Généré dynamiquement -->
+      </div>
+    </div>
+
+    <!-- ════ VUE : IMPORT ════ -->
+    <div id="view-import" class="view">
+      <div class="view-header">
+        <div>
+          <h2 class="view-title">Importer des participants</h2>
+          <p class="view-subtitle">Via fichier CSV ou saisie manuelle</p>
+        </div>
+      </div>
+
+      <div class="import-grid">
+        <!-- Uploader CSV -->
+        <div class="import-zone" id="csv-drop-zone">
+          <span class="material-icons-round import-zone-icon">upload_file</span>
+          <h3>Glissez votre fichier CSV</h3>
+          <p>ou cliquez pour parcourir</p>
+          <input type="file" id="csv-file" accept=".csv" style="display:none">
+          <button class="btn-upload" id="csv-upload-btn">
+            <span class="material-icons-round">folder_open</span> Choisir un fichier
+          </button>
+          <div class="import-format">
+            <strong>Format attendu :</strong> Colonne 2 = Nom · Colonne 3 = Date naiss. · Colonne 5 = Église · Colonne 6 = Téléphone
+          </div>
+        </div>
+
+        <!-- Saisie manuelle -->
+        <div class="manual-form-card">
+          <h3><span class="material-icons-round">edit_note</span> Saisie manuelle</h3>
+          <div class="field-group">
+            <label>Nom complet *</label>
+            <input type="text" id="manual-nom" placeholder="Ex: Jean Dupont">
+          </div>
+          <div class="field-group">
+            <label>Date & lieu de naissance</label>
+            <input type="text" id="manual-date" placeholder="Ex: 01/01/2000 à Niamey">
+          </div>
+          <div class="field-group">
+            <label>Église de provenance</label>
+            <input type="text" id="manual-eglise" placeholder="Ex: Baptiste de Niamey">
+          </div>
+          <div class="field-group">
+            <label>Numéro de téléphone</label>
+            <input type="tel" id="manual-numero" placeholder="Ex: 90123456">
+          </div>
+          <button class="btn-save" id="save-manual-btn">
+            <span class="material-icons-round">save</span> Enregistrer
+          </button>
+        </div>
+      </div>
+
+      <!-- Preview CSV -->
+      <div id="csv-preview-section" class="csv-preview-section" style="display:none;">
+        <div class="preview-header">
+          <h3 id="preview-count-label">Aperçu import</h3>
+          <div>
+            <button class="btn-icon-text" id="confirm-import-btn">
+              <span class="material-icons-round">check_circle</span> Confirmer
+            </button>
+            <button class="btn-icon-text btn-danger" id="cancel-import-btn">
+              <span class="material-icons-round">cancel</span> Annuler
+            </button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Nom</th><th>Date naiss.</th><th>Église</th><th>Statut</th>
+              </tr>
+            </thead>
+            <tbody id="preview-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ VUE : SCANNER ════ -->
+    <div id="view-scanner" class="view">
+      <div class="view-header">
+        <div>
+          <h2 class="view-title">Scanner QR Code</h2>
+          <p class="view-subtitle">Validez l'entrée des participants en temps réel</p>
+        </div>
+      </div>
+
+      <div class="scanner-layout">
+        <div class="scanner-card">
+          <div id="qr-reader" class="qr-reader-box"></div>
+          <div class="scanner-controls">
+            <button id="start-scan-btn" class="btn-scan-start">
+              <span class="material-icons-round">play_arrow</span> Démarrer
+            </button>
+            <button id="stop-scan-btn" class="btn-scan-stop">
+              <span class="material-icons-round">stop</span> Arrêter
+            </button>
+          </div>
+          <p class="scanner-hint">Pointez la caméra vers le QR code du ticket</p>
+        </div>
+
+        <div class="scan-history-card">
+          <h3>Derniers scans</h3>
+          <div id="scan-history" class="scan-history">
+            <div class="scan-empty">Aucun scan récent</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── BOTTOM NAV (mobile PWA) ── -->
+<nav class="bottom-nav" id="bottom-nav" style="display:none;">
+  <button class="bnav-item active" data-view="dashboard">
+    <span class="material-icons-round">dashboard</span>
+    <span>Home</span>
+  </button>
+  <button class="bnav-item" data-view="participants">
+    <span class="material-icons-round">group</span>
+    <span>Participants</span>
+  </button>
+  <button class="bnav-item bnav-center" data-view="scanner">
+    <span class="material-icons-round">qr_code_scanner</span>
+  </button>
+  <button class="bnav-item" data-view="import">
+    <span class="material-icons-round">upload_file</span>
+    <span>Import</span>
+  </button>
+  <button class="bnav-item" data-view="tickets">
+    <span class="material-icons-round">confirmation_number</span>
+    <span>Tickets</span>
+  </button>
+</nav>
+
+<!-- ── MODAL TICKET ── -->
+<div id="ticket-modal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-top">
+      <h3>🎫 Ticket participant</h3>
+      <button class="modal-close-btn" id="close-ticket-modal">
+        <span class="material-icons-round">close</span>
+      </button>
+    </div>
+    <div id="ticket-to-export" class="ticket-preview"></div>
+    <div class="modal-actions">
+      <button id="download-ticket-btn" class="btn-download">
+        <span class="material-icons-round">download</span> Télécharger PNG
+      </button>
+      <button id="close-ticket-footer" class="btn-outline-modal">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL SCAN RESULT ── -->
+<div id="scan-modal" class="modal-overlay">
+  <div class="modal-box scan-result-box">
+    <div class="scan-result-icon" id="scan-icon-wrap">
+      <span class="material-icons-round" id="scan-result-icon">check_circle</span>
+    </div>
+    <h3 id="scan-result-title">Validé</h3>
+    <p id="scan-result-message">Entrée confirmée</p>
+    <button id="close-scan-modal" class="btn-download" style="margin-top:1.5rem;">OK</button>
+  </div>
+</div>
+
+<!-- ── FLOATING PWA BANNER ── -->
+<!-- ── FLOATING PWA BANNER (mobile only) ── -->
+<div id="pwa-banner" class="pwa-banner" style="display:none;" aria-hidden="true">
+  <div class="pwa-banner-left">
+    <div class="pwa-banner-icon">
+      <span class="material-icons-round">install_mobile</span>
+    </div>
+    <div class="pwa-banner-text">
+      <strong>Installer UJEEBN Admin</strong>
+      <span>Scannez hors-ligne · Accès bénévoles rapide</span>
+    </div>
+  </div>
+  <div class="pwa-banner-actions">
+    <button id="pwa-install-btn" class="pwa-install-btn">
+      <span class="material-icons-round">download</span> Installer
+    </button>
+    <button id="pwa-close-btn" class="pwa-close-btn" aria-label="Fermer">
+      <span class="material-icons-round">close</span>
+    </button>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="data.js"></script>
+<script src="script.js"></script>
+<script src="libs/qrcode.js"></script>
+</body>
+</html>

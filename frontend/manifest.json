@@ -1,0 +1,14 @@
+{
+  "name": "UJEEBN Admin · Camp Biblique 2026",
+  "short_name": "UJEEBN Admin",
+  "description": "Dashboard admin gestion tickets Camp Biblique UJEEBN 2026",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#0D0D0D",
+  "background_color": "#0D0D0D",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "assets/icon-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icon-512x512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

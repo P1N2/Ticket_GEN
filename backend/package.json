@@ -1,0 +1,19 @@
+{
+  "name": "camp-tickets-backend",
+  "version": "1.0.0",
+  "description": "API pour la gestion des tickets du Camp Biblique UJEEBN 2026",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.22.2",
+    "socket.io": "^4.7.2",
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
