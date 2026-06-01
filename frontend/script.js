@@ -722,34 +722,39 @@ async function requestCameraAndStart() {
   });
 }
 
+// 1. Cette fonction gère les échecs de lecture
+function onScanFailure(error) {
+  // On ne fait RIEN ici. 
+  // C'est vital : cela empêche l'erreur de s'afficher quand le scanner cherche le code.
+  // La bibliothèque fait des milliers de tentatives par seconde, la plupart échouent,
+  // c'est normal. On ne veut pas voir ces erreurs.
+}
+
+// 2. Cette fonction gère le succès
 async function onScanSuccess(decodedText) {
-  // 1. Arrêt immédiat pour stabiliser la lecture et éviter les erreurs de flux
+  // On arrête tout dès qu'on a un début de détection pour éviter les doublons
   await stopScanner();
   
-  if (navigator.vibrate) navigator.vibrate(100);
-
   try {
-    // Nettoyage au cas où des caractères invisibles seraient présents
     const cleanText = decodedText.trim();
     const data = JSON.parse(cleanText);
     
-    if (!data.id || !data.nom) {
-      showScanResult('error', 'Format Invalide', 'Ce QR Code ne provient pas de l\'application UJEEBN.');
-      return;
-    }
+    // Vérification basique
+    if (!data.id) throw new Error("Format invalide");
 
     let p = participants.find(x => x.id === Number(data.id));
 
     if (!p) {
-      showScanResult('error', 'Inconnu', `Le participant "${data.nom}" n'est pas sur la liste.`);
+      showScanResult('error', 'Inconnu', 'Participant non trouvé.');
       return;
     }
 
     if (p.scanned) {
-      showScanResult('warn', 'Déjà Scanné', `⚠️ "${p.nom}" a déjà validé son entrée au camp.`);
+      showScanResult('warn', 'Déjà Scanné', `⚠️ "${p.nom}" a déjà validé son entrée.`);
       return;
     }
 
+    // Mise à jour
     if (!useLocalStorage) {
       await apiFetch(`/api/participants/${p.id}/scan`, {
         method: 'POST',
@@ -761,18 +766,14 @@ async function onScanSuccess(decodedText) {
     p.scanned = true;
     saveParticipants();
     
-    showScanResult('ok', 'Entrée Validée !', `✅ Bienvenue au Camp UJEEBN 2026 :\n${p.nom}\nProvenance : ${p.eglise || '—'}`);
+    if (navigator.vibrate) navigator.vibrate(100);
+    showScanResult('ok', 'Entrée Validée !', `✅ ${p.nom}`);
 
   } catch (e) {
-    console.error("Erreur d'analyse QR Code :", e);
-    showScanResult('error', 'Erreur de Lecture', 'Impossible de décoder les données du QR Code.');
-    // On ne bloque plus l'utilisateur avec une erreur si le scan échoue.
-    // L'arrêt du scanner suffit à stopper le cycle d'erreurs.
+    // Si on arrive ici, c'est que le JSON n'était pas bon ou autre erreur
+    // On ne montre PAS de message d'erreur, on laisse l'utilisateur réessayer.
+    console.log("Lecture en cours...");
   }
-}
-
-function onScanFailure(error) {
-  // Callback silencieux pour éviter les spams en console pendant la recherche de repères
 }
 
 async function stopScanner() {
