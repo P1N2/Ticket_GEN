@@ -40,7 +40,7 @@ async function loadParticipants() {
       participants = [
         { id: 1, nom: 'Jean Dupont', dateNaissance: '15/03/2000 à Niamey', eglise: 'Baptiste de Niamey', numero: '90123456', scanned: false, ticketGenerated: true },
         { id: 2, nom: 'Marie Coulibaly', dateNaissance: '22/07/1998 à Dosso', eglise: 'Assemblées de Dieu', numero: '98765432', scanned: true, ticketGenerated: true },
-        { id: 3, nom: 'Amadou Issaka', dateNaissance: '10/12/2001 à Zinder', eglise: 'Évangélique de Zinder', numero: '91234567', scanned: false, ticketGenerated: false },
+        { id: 3, nom: "Amadou Issaka', dateNaissance: '10/12/2001 à Zinder', eglise: 'Évangélique de Zinder', numero: '91234567', scanned: false, ticketGenerated: false },
         { id: 4, nom: 'Fatima Zakari', dateNaissance: '05/05/1999 à Maradi', eglise: 'Cathédrale Saint-Jean', numero: '92345678', scanned: false, ticketGenerated: false }
       ];
       localStorage.setItem('ujeebn_participants', JSON.stringify(participants));
@@ -347,20 +347,36 @@ async function openTicketModal(id) {
   currentTicketParticipant = p;
 
   const qrData = JSON.stringify({ id: p.id, nom: p.nom });
-  const initials = p.nom.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  
+  // Extraction propre des initiales basée sur les espaces du nom complet
+  const parts = p.nom.trim().split(' ');
+  const initials = parts.length > 1 
+    ? (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase() 
+    : p.nom.slice(0, 2).toUpperCase();
 
   qs('#ticket-to-export').innerHTML = buildTicketHTML(p, initials);
 
+  // Injection sécurisée du QR Code adapté au fond blanc
   setTimeout(() => {
-    renderQRCode('#ticket-qr-code', qrData);
+    const container = document.getElementById('ticket-qr-code');
+    if (container) {
+      container.innerHTML = '';
+      new QRCode(container, {
+        text: qrData,
+        width: 150,
+        height: 150,
+        colorDark: "#111111",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    }
   }, 80);
 
   // APRÈS
-if (!p.ticketGenerated) {
+  if (!p.ticketGenerated) {
     if (!useLocalStorage) {
       try {
         await apiFetch(`/api/participants/${p.id}/generate`, { method: 'PUT' });
-        // Recharger depuis DB pour avoir le vrai état
         await loadParticipants();
       } catch (err) {
         console.error(err);
@@ -370,7 +386,7 @@ if (!p.ticketGenerated) {
       p.ticketGenerated = true;
       saveParticipants();
     }
-}
+  }
 
   qs('#ticket-modal').classList.add('active');
 }
@@ -383,10 +399,10 @@ function buildTicketHTML(p, initials) {
     border-radius: 24px;
     overflow: hidden;
     font-family: 'DM Sans', Arial, sans-serif;
-    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    box-shadow: 0 20px 60px rgba(0,0,0,.15);
     margin: 0 auto;
+    text-align: left;
   ">
-    <!-- Header jaune -->
     <div style="
       background: #F6C90E;
       padding: 28px 28px 20px;
@@ -411,79 +427,94 @@ function buildTicketHTML(p, initials) {
       ">${initials}</div>
     </div>
 
-    <!-- Ligne décorative tirets -->
     <div style="
       background: #111;
       height: 6px;
       background-image: repeating-linear-gradient(90deg, #F6C90E 0, #F6C90E 18px, #111 18px, #111 28px);
     "></div>
 
-    <!-- Corps du ticket -->
-    <div style="padding: 24px 28px 20px; background:#fff;">
+    <div style="padding: 24px 28px 20px; background:#ffffff;">
       <div style="font-family:'Syne',Arial,sans-serif; font-size:1.55rem; font-weight:800; color:#111; line-height:1.15; margin-bottom:20px; word-break:break-word;">${esc(p.nom)}</div>
 
       <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:22px;">
         <div style="display:flex; align-items:center; gap:10px;">
-          <div style="width:30px; height:30px; background:#f5f5f5; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-            <span class="material-icons-round" style="font-size:.95rem; color:#888;">cake</span>
+          <div style="width:34px; height:34px; background:#f5f5f5; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <span class="material-icons-round" style="font-size:.95rem; color:#555;">cake</span>
           </div>
           <div>
-            <div style="font-size:.65rem; color:#aaa; text-transform:uppercase; letter-spacing:.08em; font-weight:600;">Date de naissance</div>
+            <div style="font-size:.65rem; color:#aaa; text-transform:uppercase; letter-spacing:.08em; font-weight:600; line-height:1.2;">Date de naissance</div>
             <div style="font-size:.9rem; color:#111; font-weight:600;">${esc(p.dateNaissance || '—')}</div>
           </div>
         </div>
         <div style="display:flex; align-items:center; gap:10px;">
-          <div style="width:30px; height:30px; background:#f5f5f5; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-            <span class="material-icons-round" style="font-size:.95rem; color:#888;">account_balance</span>
+          <div style="width:34px; height:34px; background:#f5f5f5; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <span class="material-icons-round" style="font-size:.95rem; color:#555;">account_balance</span>
           </div>
           <div>
-            <div style="font-size:.65rem; color:#aaa; text-transform:uppercase; letter-spacing:.08em; font-weight:600;">Église de provenance</div>
+            <div style="font-size:.65rem; color:#aaa; text-transform:uppercase; letter-spacing:.08em; font-weight:600; line-height:1.2;">Église de provenance</div>
             <div style="font-size:.9rem; color:#111; font-weight:600;">${esc(p.eglise || '—')}</div>
           </div>
         </div>
         <div style="display:flex; align-items:center; gap:10px;">
-          <div style="width:30px; height:30px; background:#F6C90E; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <div style="width:34px; height:34px; background:#F6C90E; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
             <span class="material-icons-round" style="font-size:.95rem; color:#111;">tag</span>
           </div>
           <div>
-            <div style="font-size:.65rem; color:#aaa; text-transform:uppercase; letter-spacing:.08em; font-weight:600;">Numéro de ticket</div>
+            <div style="font-size:.65rem; color:#aaa; text-transform:uppercase; letter-spacing:.08em; font-weight:600; line-height:1.2;">Numéro de ticket</div>
             <div style="font-size:.9rem; color:#111; font-weight:700;">#${String(p.id).padStart(4, '0')}</div>
           </div>
         </div>
       </div>
 
-      <!-- Séparateur pointillé -->
       <div style="border-top: 2px dashed #e5e5e5; margin: 0 -4px 20px;"></div>
 
-      <!-- QR Code centré -->
       <div style="display:flex; flex-direction:column; align-items:center; gap:10px;">
         <div style="
           padding: 14px;
-          background: #fff;
+          background: #ffffff;
           border: 2px solid #111;
           border-radius: 16px;
           line-height: 0;
+          display: inline-block;
         ">
-          <div id="ticket-qr-code" style="width:150px; height:150px;"></div>
+          <div id="ticket-qr-code" style="width:150px; height:150px; display:flex; align-items:center; justify-content:center;"></div>
         </div>
-        <div style="font-size:.72rem; color:#aaa; letter-spacing:.06em; text-align:center;">Scanner ce code à l'entrée du camp</div>
+        <div style="font-size:.72rem; color:#aaa; letter-spacing:.06em; text-align:center; font-weight:500;">Scanner ce code à l'entrée du camp</div>
       </div>
     </div>
 
-    <!-- Footer -->
     <div style="
       background: #111;
       padding: 14px 28px;
       text-align: center;
       font-size: .72rem;
-      color: rgba(255,255,255,.5);
+      color: rgba(255,255,255,.6);
       letter-spacing: .04em;
+      font-weight: 500;
     ">
       "Vous êtes la lumière du monde" — Matthieu 5:14
     </div>
   </div>
   `;
 }
+
+function downloadTicket() {
+  const target = qs('#ticket-inner');
+  if (!target || !currentTicketParticipant) return;
+
+  html2canvas(target, {
+    backgroundColor: null, // Conserve le fond blanc des styles en ligne sans forcer du noir ou transparent
+    scale: 2,              // Double la résolution pour un rendu parfait sur mobile/impression
+    logging: false,
+    useCORS: true          // Évite le blocage inter-origine des icônes ou polices chargées dynamiquement
+  }).then(canvas => {
+    const link = document.createElement('a');
+    link.download = `Ticket_${currentTicketParticipant.nom.replace(/\s/g, '_')}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+}
+
 function showScanResult(type, title, msg) {
   const iconMap = { ok: 'check_circle', warn: 'warning', error: 'cancel' };
   const colorMap = { ok: 'var(--green)', warn: 'var(--accent)', error: 'var(--red)' };
@@ -690,9 +721,6 @@ function closeSidebar() {
 // ═══════════════════════════════════════════════
 // PWA
 // ═══════════════════════════════════════════════
-// ═══════════════════════════════════════════════
-// PWA — BANNIÈRE MOBILE UNIQUEMENT
-// ═══════════════════════════════════════════════
 function isMobileDevice() {
   return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
     || window.innerWidth < 769;
@@ -702,19 +730,17 @@ window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredInstallPrompt = e;
 
-  // N'afficher que sur mobile ET si pas déjà dismissé ET si connecté
   if (isMobileDevice() && !localStorage.getItem('pwa_banner_dismissed')) {
     const banner = qs('#pwa-banner');
     if (banner) {
       setTimeout(() => {
         banner.style.display = 'flex';
         banner.style.flexDirection = 'column';
-      }, 3000); // 3s après connexion
+      }, 3000);
     }
   }
 });
 
-// Masquer si déjà installée
 window.addEventListener('appinstalled', () => {
   const banner = qs('#pwa-banner');
   if (banner) banner.style.display = 'none';
@@ -784,8 +810,8 @@ document.addEventListener('DOMContentLoaded', () => {
   qs('#scan-modal').addEventListener('click', e => { if (e.target === qs('#scan-modal')) closeScanModal(); });
 
   // Scanner
-  qs('#start-scan-btn').addEventListener('click', requestCameraAndStart);
-  qs('#stop-scan-btn').addEventListener('click', stopScanner);
+  if (qs('#start-scan-btn')) qs('#start-scan-btn').addEventListener('click', requestCameraAndStart);
+  if (qs('#stop-scan-btn')) qs('#stop-scan-btn').addEventListener('click', stopScanner);
 
   // Import CSV
   qs('#csv-upload-btn').addEventListener('click', () => qs('#csv-file').click());
@@ -808,7 +834,6 @@ document.addEventListener('DOMContentLoaded', () => {
   qs('#save-manual-btn').addEventListener('click', addManualParticipant);
 
   // PWA banner
- // PWA banner
   qs('#pwa-install-btn')?.addEventListener('click', async () => {
     if (deferredInstallPrompt) {
       deferredInstallPrompt.prompt();
