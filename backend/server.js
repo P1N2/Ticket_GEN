@@ -8,7 +8,7 @@ const { Server } = require('socket.io');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || '*';
+const FRONTEND_ORIGIN = '*';
 
 // Middleware
 app.use(cors({ origin: FRONTEND_ORIGIN }));
