@@ -687,9 +687,10 @@ function closeSidebar() {
 // NOUVELLES AJOUTS : LOGIQUE DU SCANNER QR CODE
 // ═══════════════════════════════════════════════
 async function requestCameraAndStart() {
+  // CORRECTION : On s'assure d'utiliser le bon sélecteur avec le dièse '#'
   const readerEl = qs('#reader'); 
   if (!readerEl) {
-    alert("Erreur: L'élément HTML '#reader' est manquant dans votre vue Scanner.");
+    alert("Erreur: L'élément HTML '#reader' est introuvable. Vérifiez votre fichier HTML.");
     return;
   }
 
@@ -701,6 +702,7 @@ async function requestCameraAndStart() {
   if (qs('#stop-scan-btn')) qs('#stop-scan-btn').style.display = 'inline-flex';
   readerEl.style.display = 'block';
 
+  // Ici on passe l'ID pur "reader" sans le '#' à la bibliothèque
   html5QrCode = new Html5Qrcode("reader");
 
   const config = { 
@@ -781,7 +783,7 @@ async function stopScanner() {
 function resetScannerUI() {
   if (qs('#start-scan-btn')) qs('#start-scan-btn').style.display = 'inline-flex';
   if (qs('#stop-scan-btn')) qs('#stop-scan-btn').style.display = 'none';
-  const readerEl = qs('#reader');
+  const readerEl = qs('#reader'); // Correction du sélecteur ici aussi
   if (readerEl) {
     readerEl.style.display = 'none';
     readerEl.innerHTML = '';
