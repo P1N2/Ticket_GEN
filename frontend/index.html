@@ -339,37 +339,38 @@
 
     <!-- ════ VUE : SCANNER ════ -->
     <div id="view-scanner" class="view">
-      <div class="view-header">
-        <div>
-          <h2 class="view-title">Scanner QR Code</h2>
-          <p class="view-subtitle">Validez l'entrée des participants en temps réel</p>
-        </div>
-      </div>
+  <div class="view-header">
+    <div>
+      <h2 class="view-title">Scanner QR Code</h2>
+      <p class="view-subtitle">Validez l'entrée des participants en temps réel</p>
+    </div>
+  </div>
 
-      <div class="scanner-layout">
-        <div class="scanner-card">
-          <div id="qr-reader" class="qr-reader-box"></div>
-          <div class="scanner-controls">
-            <button id="start-scan-btn" class="btn-scan-start">
-              <span class="material-icons-round">play_arrow</span> Démarrer
-            </button>
-            <button id="stop-scan-btn" class="btn-scan-stop">
-              <span class="material-icons-round">stop</span> Arrêter
-            </button>
-          </div>
-          <p class="scanner-hint">Pointez la caméra vers le QR code du ticket</p>
-        </div>
-
-        <div class="scan-history-card">
-          <h3>Derniers scans</h3>
-          <div id="scan-history" class="scan-history">
-            <div class="scan-empty">Aucun scan récent</div>
-          </div>
-        </div>
+  <div class="scanner-layout">
+    <div class="scanner-card">
+      <div id="reader" class="qr-reader-box"></div>
+      
+      <div class="scanner-controls">
+        <button id="start-scan-btn" class="btn-scan-start">
+          <span class="material-icons-round">play_arrow</span> Démarrer
+        </button>
+        <button id="stop-scan-btn" class="btn-scan-stop" style="display: none;">
+          <span class="material-icons-round">stop</span> Arrêter
+        </button>
       </div>
+      <p class="scanner-hint">Pointez la caméra vers le QR code du ticket</p>
     </div>
 
-  </main>
+    <div class="scan-history-card">
+      <h3>Derniers scans</h3>
+      <div id="scan-history" class="scan-history">
+        <div class="scan-empty">Aucun scan récent</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
 </div>
 
 <!-- ── BOTTOM NAV (mobile PWA) ── -->
