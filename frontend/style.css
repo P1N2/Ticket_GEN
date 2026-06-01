@@ -1682,3 +1682,27 @@ input { font-family: inherit; }
   border-radius: 4px;
   opacity: .4;
 }
+/* ═══════════════════════════════════════
+   RESPONSIVE TICKET (ZOOM AUTOMATIQUE)
+═══════════════════════════════════════ */
+@media (max-width: 680px) {
+  .ticket-preview {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: visible;
+    padding: 20px 0;
+    /* Crée un contexte de confinement pour éviter les barres de défilement */
+    min-height: 200px; 
+  }
+
+  /* Version moderne basée sur ta structure actuelle */
+  .ticket-preview .ticket-el, 
+  .ticket-preview #ticket-inner {
+    transform-origin: center center;
+    /* Formule magique : adapte la taille du ticket dynamiquement selon la largeur de l'écran */
+    transform: scale(calc((0.95 * 100vw) / 650));
+    margin: 0 auto !important;
+    flex-shrink: 0 !important;
+  }
+}

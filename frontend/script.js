@@ -79,6 +79,9 @@ function saveParticipants() {
   refreshAll();
 }
 
+// ═══════════════════════════════════════════════
+// HELPER FUNCTIONS FROM CODE
+// ═══════════════════════════════════════════════
 function getNextId() {
   return participants.length > 0 ? Math.max(...participants.map(p => p.id)) + 1 : 1;
 }
@@ -86,6 +89,7 @@ function closeTicketModal() {
   qs('#ticket-modal').classList.remove('active');
   currentTicketParticipant = null;
 }
+
 // ═══════════════════════════════════════════════
 // AUTH
 // ═══════════════════════════════════════════════
@@ -164,11 +168,9 @@ function refreshAll() {
   const total = participants.length;
   const scanned = participants.filter(p => p.scanned).length;
 
-  // Modification : Les tickets générés sont toujours égaux au total des participants enregistrés
   setText('#kpi-total', total);
   setText('#kpi-tickets', total);
   setText('#kpi-scanned', scanned);
-  setText('#kpi-pending', 0); // Toujours 0 en attente
   setText('#nav-badge-total', total);
 
   const sPct = total ? Math.round(scanned / total * 100) : 0;
@@ -224,7 +226,7 @@ function renderParticipantsTable() {
 
   if (currentFilter === 'scanned') list = list.filter(p => p.scanned);
   else if (currentFilter === 'ticket') list = list.filter(p => !p.scanned);
-  else if (currentFilter === 'pending') list = []; // Plus rien n'est en attente
+  else if (currentFilter === 'pending') list = [];
 
   setText('#table-count', `${list.length} participant(s)`);
 
@@ -349,7 +351,7 @@ async function openTicketModal(id) {
         width: 140,
         height: 140,
         colorDark: "#111111",
-        colorLight: "#F6C90E", // Adapté sur le fond jaune de la partie QR
+        colorLight: "#F6C90E",
         correctLevel: QRCode.CorrectLevel.H
       });
     }
@@ -562,7 +564,6 @@ async function confirmImport() {
   const toAdd = pendingCSVData.filter(p => !p.isDuplicate);
   if (toAdd.length === 0) return alert('Aucun nouveau participant à importer');
 
-  // Modification : Les éléments importés reçoivent directement l'état de ticket généré valide
   const preparedData = toAdd.map(p => ({ ...p, ticketGenerated: true }));
 
   if (!useLocalStorage) {
@@ -610,7 +611,6 @@ async function addManualParticipant() {
     return alert(`⚠️ "${nom}" est déjà inscrit`);
   }
 
-  // Modification : Création avec le statut ticketGenerated activé par défaut
   const payload = {
     nom,
     dateNaissance: qs('#manual-date').value.trim(),
@@ -684,11 +684,123 @@ function closeSidebar() {
 }
 
 // ═══════════════════════════════════════════════
-// PWA
+// NOUVELLES AJOUTS : LOGIQUE DU SCANNER QR CODE
+// ═══════════════════════════════════════════════
+async function requestCameraAndStart() {
+  const readerEl = qs('#reader'); 
+  if (!readerEl) {
+    alert("Erreur: L'élément HTML '#reader' est manquant dans votre vue Scanner.");
+    return;
+  }
+
+  if (html5QrCode) {
+    await stopScanner();
+  }
+
+  if (qs('#start-scan-btn')) qs('#start-scan-btn').style.display = 'none';
+  if (qs('#stop-scan-btn')) qs('#stop-scan-btn').style.display = 'inline-flex';
+  readerEl.style.display = 'block';
+
+  html5QrCode = new Html5Qrcode("reader");
+
+  const config = { 
+    fps: 10, 
+    qrbox: { width: 250, height: 250 } 
+  };
+
+  html5QrCode.start(
+    { facingMode: "environment" }, 
+    config, 
+    onScanSuccess, 
+    onScanFailure
+  ).catch(err => {
+    console.error("Erreur d'initialisation caméra :", err);
+    alert("Impossible d'activer la caméra. Assurez-vous d'avoir accordé l'autorisation d'accès et d'être en HTTPS.");
+    resetScannerUI();
+  });
+}
+
+async function onScanSuccess(decodedText) {
+  if (navigator.vibrate) navigator.vibrate(100);
+
+  try {
+    const data = JSON.parse(decodedText);
+    
+    if (!data.id || !data.nom) {
+      showScanResult('error', 'Format Invalide', 'Ce QR Code ne provient pas de l\'application UJEEBN.');
+      return;
+    }
+
+    let p = participants.find(x => x.id === Number(data.id));
+
+    if (!p) {
+      showScanResult('error', 'Inconnu', `Le participant "${data.nom}" n'est pas sur la liste.`);
+      return;
+    }
+
+    if (p.scanned) {
+      showScanResult('warn', 'Déjà Scanné', `⚠️ "${p.nom}" a déjà validé son entrée au camp.`);
+      return;
+    }
+
+    if (!useLocalStorage) {
+      await apiFetch(`/api/participants/${p.id}/scan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scanned: true })
+      });
+    }
+
+    p.scanned = true;
+    saveParticipants();
+    
+    showScanResult('ok', 'Entrée Validée !', `✅ Bienvenue au Camp UJEEBN 2026 :\n${p.nom}\nProvenance : ${p.eglise || '—'}`);
+
+  } catch (e) {
+    console.error("Erreur d'analyse QR Code :", e);
+    showScanResult('error', 'Erreur de Lecture', 'Impossible de décoder les données du QR Code.');
+  }
+}
+
+function onScanFailure(error) {
+  // Callback silencieux pour éviter les spams en console pendant la recherche de repères
+}
+
+async function stopScanner() {
+  if (html5QrCode) {
+    try {
+      await html5QrCode.stop();
+    } catch (err) {
+      console.warn("Scanner stoppé ou déjà inactif.", err);
+    }
+    html5QrCode = null;
+  }
+  resetScannerUI();
+}
+
+function resetScannerUI() {
+  if (qs('#start-scan-btn')) qs('#start-scan-btn').style.display = 'inline-flex';
+  if (qs('#stop-scan-btn')) qs('#stop-scan-btn').style.display = 'none';
+  const readerEl = qs('#reader');
+  if (readerEl) {
+    readerEl.style.display = 'none';
+    readerEl.innerHTML = '';
+  }
+}
+
+// ═══════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════
+function qs(sel)  { return document.querySelector(sel); }
+function qsa(sel) { return document.querySelectorAll(sel); }
+function setText(sel, val) { const el = qs(sel); if (el) el.textContent = val; }
+function esc(s)   { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ═══════════════════════════════════════════════
+// CORRECTION LOGIQUE BANDEAU PWA
 // ═══════════════════════════════════════════════
 function isMobileDevice() {
-  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
-    || window.innerWidth < 769;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 769;
 }
 
 window.addEventListener('beforeinstallprompt', e => {
@@ -709,18 +821,11 @@ window.addEventListener('beforeinstallprompt', e => {
 window.addEventListener('appinstalled', () => {
   const banner = qs('#pwa-banner');
   if (banner) banner.style.display = 'none';
+  deferredInstallPrompt = null;
 });
 
 // ═══════════════════════════════════════════════
-// UTILS
-// ═══════════════════════════════════════════════
-function qs(sel)  { return document.querySelector(sel); }
-function qsa(sel) { return document.querySelectorAll(sel); }
-function setText(sel, val) { const el = qs(sel); if (el) el.textContent = val; }
-function esc(s)   { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-// ═══════════════════════════════════════════════
-// INIT
+// INIT & DOM LISTENERS
 // ═══════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -729,7 +834,6 @@ document.addEventListener('DOMContentLoaded', () => {
   qs('#login-password').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
   qs('#logout-btn').addEventListener('click', logout);
 
-  // Session persistante
   if (sessionStorage.getItem('ujeebn_auth') === '1') showApp();
 
   // Nav sidebar
@@ -742,12 +846,10 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', () => { if (btn.dataset.view) switchView(btn.dataset.view); });
   });
 
-  // "Voir tous" dashboard
   qs('.btn-text')?.addEventListener('click', function() {
     switchView(this.dataset.view || 'participants');
   });
 
-  // Topbar menu
   qs('#sidebar-toggle').addEventListener('click', openSidebar);
 
   // Participants table
@@ -774,7 +876,7 @@ document.addEventListener('DOMContentLoaded', () => {
   qs('#close-scan-modal').addEventListener('click', closeScanModal);
   qs('#scan-modal').addEventListener('click', e => { if (e.target === qs('#scan-modal')) closeScanModal(); });
 
-  // Scanner
+  // Branchement des écouteurs de la caméra (Modifié)
   if (qs('#start-scan-btn')) qs('#start-scan-btn').addEventListener('click', requestCameraAndStart);
   if (qs('#stop-scan-btn')) qs('#stop-scan-btn').addEventListener('click', stopScanner);
 
@@ -798,7 +900,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Manual add
   qs('#save-manual-btn').addEventListener('click', addManualParticipant);
 
-  // PWA banner
+  // Branchement interactif des clics PWA (Modifié)
   qs('#pwa-install-btn')?.addEventListener('click', async () => {
     if (deferredInstallPrompt) {
       deferredInstallPrompt.prompt();
@@ -807,10 +909,14 @@ document.addEventListener('DOMContentLoaded', () => {
         qs('#pwa-banner').style.display = 'none';
       }
       deferredInstallPrompt = null;
+    } else {
+      alert("L'installation n'est pas disponible pour le moment (déjà installée ou navigateur non compatible).");
     }
   });
 
-  qs('#pwa-close-btn')?.addEventListener('click', () => {
+  qs('#pwa-close-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     qs('#pwa-banner').style.display = 'none';
     localStorage.setItem('pwa_banner_dismissed', '1');
   });
@@ -820,11 +926,11 @@ document.addEventListener('DOMContentLoaded', () => {
     navigator.serviceWorker.register('sw.js').catch(console.error);
   }
 
-  // Initialize Socket.IO client (real-time sync)
+  // Real-time sync init
   initSocket();
 });
 
-// Shake animation CSS (injectée dynamiquement)
+// Dynamic Animation Style
 const shakeCSS = document.createElement('style');
 shakeCSS.textContent = `
   @keyframes shake {
