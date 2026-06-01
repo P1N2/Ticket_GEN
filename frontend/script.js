@@ -355,242 +355,135 @@ async function openTicketModal(id) {
     renderQRCode('#ticket-qr-code', qrData);
   }, 80);
 
-  if (!p.ticketGenerated) {
-    let success = true;
+  // APRÈS
+if (!p.ticketGenerated) {
     if (!useLocalStorage) {
       try {
         await apiFetch(`/api/participants/${p.id}/generate`, { method: 'PUT' });
+        // Recharger depuis DB pour avoir le vrai état
+        await loadParticipants();
       } catch (err) {
         console.error(err);
         alert('Impossible de marquer le ticket comme généré.');
-        success = false;
       }
-    }
-    if (success) {
+    } else {
       p.ticketGenerated = true;
       saveParticipants();
     }
-  }
+}
 
   qs('#ticket-modal').classList.add('active');
 }
 
 function buildTicketHTML(p, initials) {
   return `
-  <div id="ticket-inner" style="display:flex; width:100%; max-width:900px; min-height:260px; border-radius:20px; overflow:hidden; background:#fff; box-shadow:0 16px 48px rgba(0,0,0,.24); font-family:'DM Sans',Arial,sans-serif;">
-    <div style="width:260px; min-width:260px; padding:28px 24px; background:#111; color:#fff; display:flex; flex-direction:column; justify-content:center; gap:12px;">
-      <div style="font-family:'Syne',Arial,sans-serif; font-size:.95rem; font-weight:800; letter-spacing:.08em; line-height:1.1;">CAMP BIBLIQUE UJEEBN</div>
-      <div style="font-family:'Syne',Arial,sans-serif; font-size:2.4rem; font-weight:800; line-height:1; margin-top:4px;">2026</div>
-      <div style="color:rgba(255,255,255,.7); font-size:.85rem; line-height:1.5; margin-top:14px;">36ème édition · Dosso · 02-07 Août 2026</div>
-    </div>
-    <div style="flex:1; display:flex; flex-direction:column; justify-content:space-between; padding:28px 24px; background:#fff;">
+  <div id="ticket-inner" style="
+    width: 420px;
+    background: #ffffff;
+    border-radius: 24px;
+    overflow: hidden;
+    font-family: 'DM Sans', Arial, sans-serif;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    margin: 0 auto;
+  ">
+    <!-- Header jaune -->
+    <div style="
+      background: #F6C90E;
+      padding: 28px 28px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    ">
       <div>
-        <div style="font-family:'Syne',Arial,sans-serif; font-size:2.2rem; font-weight:800; color:#111; margin-bottom:18px; line-height:1.05;">${esc(p.nom)}</div>
-        <div style="display:grid; grid-template-columns: auto 1fr; gap:10px 18px; row-gap:14px; color:#555; font-size:.95rem;">
-          <div style="display:flex; align-items:center; gap:10px;"><span class="material-icons-round" style="font-size:1rem; color:#999;">cake</span><span>Date</span></div><div style="color:#222; font-weight:500;">${esc(p.dateNaissance || '—')}</div>
-          <div style="display:flex; align-items:center; gap:10px;"><span class="material-icons-round" style="font-size:1rem; color:#999;">account_balance</span><span>Église</span></div><div style="color:#222; font-weight:500;">${esc(p.eglise || '—')}</div>
-          <div style="display:flex; align-items:center; gap:10px;"><span class="material-icons-round" style="font-size:1rem; color:#999;">tag</span><span>ID</span></div><div style="color:#222; font-weight:700;">${p.id}</div>
+        <div style="font-family:'Syne',Arial,sans-serif; font-size:.7rem; font-weight:800; letter-spacing:.12em; color:#111; text-transform:uppercase;">Camp Biblique UJEEBN</div>
+        <div style="font-family:'Syne',Arial,sans-serif; font-size:2.8rem; font-weight:900; color:#111; line-height:1; margin-top:2px;">2026</div>
+        <div style="font-size:.72rem; color:#333; margin-top:6px; font-weight:500;">36ème édition · Dosso · 02–07 Août</div>
+      </div>
+      <div style="
+        width:56px; height:56px;
+        background:#111;
+        border-radius:50%;
+        display:flex; align-items:center; justify-content:center;
+        font-family:'Syne',Arial,sans-serif;
+        font-size:1.4rem; font-weight:900;
+        color:#F6C90E;
+        flex-shrink:0;
+      ">${initials}</div>
+    </div>
+
+    <!-- Ligne décorative tirets -->
+    <div style="
+      background: #111;
+      height: 6px;
+      background-image: repeating-linear-gradient(90deg, #F6C90E 0, #F6C90E 18px, #111 18px, #111 28px);
+    "></div>
+
+    <!-- Corps du ticket -->
+    <div style="padding: 24px 28px 20px; background:#fff;">
+      <div style="font-family:'Syne',Arial,sans-serif; font-size:1.55rem; font-weight:800; color:#111; line-height:1.15; margin-bottom:20px; word-break:break-word;">${esc(p.nom)}</div>
+
+      <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:22px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:30px; height:30px; background:#f5f5f5; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <span class="material-icons-round" style="font-size:.95rem; color:#888;">cake</span>
+          </div>
+          <div>
+            <div style="font-size:.65rem; color:#aaa; text-transform:uppercase; letter-spacing:.08em; font-weight:600;">Date de naissance</div>
+            <div style="font-size:.9rem; color:#111; font-weight:600;">${esc(p.dateNaissance || '—')}</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:30px; height:30px; background:#f5f5f5; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <span class="material-icons-round" style="font-size:.95rem; color:#888;">account_balance</span>
+          </div>
+          <div>
+            <div style="font-size:.65rem; color:#aaa; text-transform:uppercase; letter-spacing:.08em; font-weight:600;">Église de provenance</div>
+            <div style="font-size:.9rem; color:#111; font-weight:600;">${esc(p.eglise || '—')}</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:30px; height:30px; background:#F6C90E; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <span class="material-icons-round" style="font-size:.95rem; color:#111;">tag</span>
+          </div>
+          <div>
+            <div style="font-size:.65rem; color:#aaa; text-transform:uppercase; letter-spacing:.08em; font-weight:600;">Numéro de ticket</div>
+            <div style="font-size:.9rem; color:#111; font-weight:700;">#${String(p.id).padStart(4, '0')}</div>
+          </div>
         </div>
       </div>
-      <div style="display:flex; align-items:flex-end; gap:18px; margin-top:20px;">
-        <div style="padding:12px; border:2px solid #111; border-radius:18px; background:#fff; line-height:0;">
-          <div id="ticket-qr-code" style="width:160px; height:160px;"></div>
+
+      <!-- Séparateur pointillé -->
+      <div style="border-top: 2px dashed #e5e5e5; margin: 0 -4px 20px;"></div>
+
+      <!-- QR Code centré -->
+      <div style="display:flex; flex-direction:column; align-items:center; gap:10px;">
+        <div style="
+          padding: 14px;
+          background: #fff;
+          border: 2px solid #111;
+          border-radius: 16px;
+          line-height: 0;
+        ">
+          <div id="ticket-qr-code" style="width:150px; height:150px;"></div>
         </div>
-        <div style="font-size:.9rem; color:#777; letter-spacing:.02em; line-height:1.4;">Scanner pour valider</div>
+        <div style="font-size:.72rem; color:#aaa; letter-spacing:.06em; text-align:center;">Scanner ce code à l'entrée du camp</div>
       </div>
     </div>
-    <div style="width:260px; min-width:260px; padding:28px 24px; background:#f5f5f8; display:flex; align-items:center; justify-content:center; text-align:center; color:#666; font-size:1rem; font-style:italic; line-height:1.5;">
-      "Témoigne du Christ par ta vie" — Matthieu 5:14-16
+
+    <!-- Footer -->
+    <div style="
+      background: #111;
+      padding: 14px 28px;
+      text-align: center;
+      font-size: .72rem;
+      color: rgba(255,255,255,.5);
+      letter-spacing: .04em;
+    ">
+      "Vous êtes la lumière du monde" — Matthieu 5:14
     </div>
   </div>
   `;
 }
-function renderQRCode(selector, qrData) {
-  const qrEl = qs(selector);
-  if (!qrEl || typeof QRCode === 'undefined') return;
-  qrEl.innerHTML = '';
-  new QRCode(qrEl, {
-    text: qrData,
-    width: 160,
-    height: 160,
-    colorDark: '#1a1a2e',
-    colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.H
-  });
-}
-
-// Remplacez votre fonction downloadTicket par celle-ci :
-
-function downloadTicket() {
-  const el = qs('#ticket-inner');
-  if (!el || !currentTicketParticipant) return;
-
-  // Afficher un indicateur de chargement
-  const downloadBtn = qs('#download-ticket-btn');
-  const originalText = downloadBtn.innerHTML;
-  downloadBtn.innerHTML = '<span class="material-icons-round">hourglass_empty</span> Génération...';
-  downloadBtn.disabled = true;
-
-  // S'assurer que le QR code est complètement rendu
-  const qrContainer = qs('#ticket-qr-code');
-  if (qrContainer && qrContainer.children.length === 0 && currentTicketParticipant) {
-    const qrData = JSON.stringify({ id: currentTicketParticipant.id, nom: currentTicketParticipant.nom });
-    renderQRCode('#ticket-qr-code', qrData);
-  }
-
-  // Attendre que le QR code soit bien rendu (plus de temps)
-  setTimeout(() => {
-    html2canvas(el, {
-      scale: 3,
-      backgroundColor: '#ffffff',
-      useCORS: true,
-      logging: false,
-      onclone: (clonedDoc, element) => {
-        // Forcer le style du clone pour correspondre exactement
-        const clonedEl = clonedDoc.querySelector('#ticket-inner');
-        if (clonedEl) {
-          clonedEl.style.display = 'flex';
-          clonedEl.style.width = '900px';
-          clonedEl.style.minHeight = '260px';
-          clonedEl.style.borderRadius = '16px';
-          clonedEl.style.overflow = 'hidden';
-          
-          // S'assurer que le QR code est présent dans le clone
-          const clonedQr = clonedDoc.querySelector('#ticket-qr-code');
-          if (clonedQr && clonedQr.children.length === 0 && currentTicketParticipant) {
-            // Re-générer le QR dans le clone si nécessaire
-            const qrData = JSON.stringify({ id: currentTicketParticipant.id, nom: currentTicketParticipant.nom });
-            new QRCode(clonedQr, {
-              text: qrData,
-              width: 160,
-              height: 160,
-              colorDark: '#1a1a2e',
-              colorLight: '#ffffff',
-              correctLevel: QRCode.CorrectLevel.H
-            });
-          }
-        }
-      }
-    }).then(canvas => {
-      const link = document.createElement('a');
-      link.download = `Ticket_${currentTicketParticipant.nom.replace(/\s+/g, '_')}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-      
-      // Restaurer le bouton
-      downloadBtn.innerHTML = originalText;
-      downloadBtn.disabled = false;
-    }).catch(err => {
-      console.error('Erreur capture ticket:', err);
-      alert('Erreur lors de la génération. Réessayez.');
-      downloadBtn.innerHTML = originalText;
-      downloadBtn.disabled = false;
-    });
-  }, 500); // Attendre 500ms pour un rendu complet
-}
-// ═══════════════════════════════════════════════
-// SCANNER
-// ═══════════════════════════════════════════════
-function startScanner() {
-  const box = qs('#qr-reader');
-  box.innerHTML = '';
-  html5QrCode = new Html5Qrcode('qr-reader');
-  html5QrCode.start(
-    { facingMode: 'environment' },
-    { fps: 10, qrbox: { width: 250, height: 250 } },
-    onScanSuccess,
-    () => {}
-  ).catch(err => {
-    console.error(err);
-    alert('Impossible d\'accéder à la caméra. Vérifiez les permissions.');
-  });
-}
-
-async function requestCameraAndStart() {
-  // Prompt for camera permission first to get explicit approval
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    return alert('Votre navigateur ne supporte pas l\'accès caméra.');
-  }
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    // stop the stream immediately; Html5Qrcode will request again when starting
-    stream.getTracks().forEach(t => t.stop());
-    startScanner();
-  } catch (err) {
-    console.error('Permission caméra refusée', err);
-    alert('Permission caméra refusée. Autorisez la caméra pour scanner.');
-  }
-}
-
-function stopScanner() {
-  if (html5QrCode) {
-    html5QrCode.stop().catch(() => {});
-    html5QrCode = null;
-  }
-}
-
-async function onScanSuccess(text) {
-  stopScanner();
-  try {
-    const data = JSON.parse(text);
-    const p = participants.find(x => x.id === data.id);
-    if (!p) {
-      addScanEntry(null, 'error');
-      showScanResult('error', '❌ Non inscrit', 'Ce QR code n\'est pas reconnu dans le système');
-    } else if (p.scanned) {
-      addScanEntry(p, 'warn');
-      showScanResult('warn', '⚠️ Déjà validé', `${p.nom} a déjà été scanné`);
-    } else {
-      let success = true;
-      if (!useLocalStorage) {
-        try {
-          await apiFetch(`/api/participants/${p.id}/scan`, { method: 'PUT' });
-        } catch (err) {
-          console.error(err);
-          success = false;
-          alert('Erreur lors de la validation du ticket.');
-        }
-      }
-      if (success) {
-        p.scanned = true;
-        saveParticipants();
-        addScanEntry(p, 'ok');
-        showScanResult('ok', '✅ Entrée validée !', `${p.nom} est bien enregistré`);
-      }
-    }
-  } catch {
-    addScanEntry(null, 'error');
-    showScanResult('error', '❌ QR invalide', 'Code non reconnu par le système');
-  }
-}
-
-function addScanEntry(p, type) {
-  const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  scanHistory.unshift({ p, type, time: now });
-  renderScanHistory();
-}
-
-function renderScanHistory() {
-  const el = qs('#scan-history');
-  if (scanHistory.length === 0) {
-    el.innerHTML = '<div class="scan-empty">Aucun scan récent</div>';
-    return;
-  }
-  el.innerHTML = scanHistory.slice(0, 20).map(entry => `
-    <div class="scan-entry">
-      <div class="scan-entry-icon scan-${entry.type}">
-        <span class="material-icons-round" style="font-size:1rem">
-          ${entry.type === 'ok' ? 'check' : entry.type === 'warn' ? 'warning' : 'error'}
-        </span>
-      </div>
-      <div>
-        <div class="scan-entry-name">${entry.p ? esc(entry.p.nom) : 'Inconnu'}</div>
-        <div class="scan-entry-time">${entry.time}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
 function showScanResult(type, title, msg) {
   const iconMap = { ok: 'check_circle', warn: 'warning', error: 'cancel' };
   const colorMap = { ok: 'var(--green)', warn: 'var(--accent)', error: 'var(--red)' };
