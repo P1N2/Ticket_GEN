@@ -10,12 +10,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FRONTEND_ORIGIN = '*';
 
-// Mettre à disposition le dossier contenant le code client
+// Middleware
 app.use(cors({ origin: FRONTEND_ORIGIN }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// Serveur HTTP + Configuration de l'instance de Socket.IO
+// HTTP server + Socket.IO
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
@@ -25,7 +25,7 @@ const io = new Server(server, {
     }
 });
 
-// Helper pour diffuser la liste des participants rafraîchie à tous les terminaux connectés
+// Helper to broadcast participants state to connected sockets
 function broadcastParticipants() {
     pool.query('SELECT * FROM participants ORDER BY created_at DESC')
         .then(result => {
@@ -37,10 +37,11 @@ function broadcastParticipants() {
 }
 
 // ============================================================
-// CONFIGURATION DE LA BASE DE DONNÉES POSTGRESQL (SUPABASE)
+// BASE DE DONNÉES POSTGRESQL
 // ============================================================
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
+    // On active la configuration SSL pour accepter le certificat auto-signé de Supabase
     ssl: {
         rejectUnauthorized: false
     }
@@ -48,7 +49,7 @@ const pool = new Pool({
 
 async function initDb() {
     try {
-        // Initialisation de la structure de données
+        // Création de la table avec des noms de colonnes standardisés pour PostgreSQL
         await pool.query(`
             CREATE TABLE IF NOT EXISTS participants (
                 id SERIAL PRIMARY KEY,
@@ -78,10 +79,10 @@ async function initDb() {
 initDb();
 
 // ============================================================
-// ROUTES DE L'API REST
+// API ROUTES
 // ============================================================
 
-// GET - Extraire l'intégralité des participants enregistrés
+// GET - Récupérer tous les participants
 app.get('/api/participants', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM participants ORDER BY created_at DESC');
@@ -91,7 +92,7 @@ app.get('/api/participants', async (req, res) => {
     }
 });
 
-// GET - Traitement analytique des indicateurs (Stats globales)
+// GET - Statistiques
 app.get('/api/stats', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -107,7 +108,7 @@ app.get('/api/stats', async (req, res) => {
     }
 });
 
-// POST - Insertion unitaire manuelle d'un inscrit
+// POST - Ajouter un participant (manuel)
 app.post('/api/participants', async (req, res) => {
     const { nomPrénom, dateNaissance, lieuNaissance, age, égliseProvenance, numéroTéléphone } = req.body;
     
@@ -123,7 +124,6 @@ app.post('/api/participants', async (req, res) => {
             return;
         }
         
-        // Structure de hachage du QR Code unique lié à la transaction temporelle
         const qrCode = `TICKET_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
         const result = await pool.query(
             `INSERT INTO participants (nom_prenom, date_naissance, lieu_naissance, age, eglise_provenance, numero_telephone, qr_code)
@@ -139,7 +139,8 @@ app.post('/api/participants', async (req, res) => {
     }
 });
 
-// POST - Import massif de données (Batch de lignes CSV)
+// POST - Ajouter plusieurs participants (import CSV)
+// POST - Ajouter plusieurs participants (import CSV)
 app.post('/api/participants/batch', async (req, res) => {
     const participantsList = req.body;
     
@@ -154,7 +155,7 @@ app.post('/api/participants/batch', async (req, res) => {
     for (const p of participantsList) {
         const targetNom = p.nomPrénom || p.nom_prenom;
         
-        // SÉCURITÉ : Validation de type pour éliminer les corruptions et sauter les lignes invalides
+        // SÉCURITÉ : Ignorer les lignes vides ou sans nom pour éviter le crash 502
         if (!targetNom || typeof targetNom !== 'string') {
             continue; 
         }
@@ -169,7 +170,7 @@ app.post('/api/participants/batch', async (req, res) => {
                     targetNom, 
                     p.dateNaissance || p.date_naissance || '', 
                     p.lieuNaissance || p.lieu_naissance || '', 
-                    p.age ? parseInt(p.age, 10) : null, 
+                    p.age ? parseInt(p.age, 10) : null, // Sécurité conversion d'âge
                     p.égliseProvenance || p.eglise_provenance || '', 
                     p.numéroTéléphone || p.numero_telephone || ''
                 ]
@@ -192,7 +193,7 @@ app.post('/api/participants/batch', async (req, res) => {
     broadcastParticipants();
 });
 
-// PUT - Validation d'accès à l'événement par scan de badge
+// PUT - Marquer un ticket comme scanné
 app.put('/api/participants/:id/scan', async (req, res) => {
     const { id } = req.params;
     
@@ -218,7 +219,7 @@ app.put('/api/participants/:id/scan', async (req, res) => {
     }
 });
 
-// PUT - Basculer le flag d'état d'affichage/téléchargement du ticket
+// PUT - Marquer qu'un ticket a été généré
 app.put('/api/participants/:id/generate', async (req, res) => {
     const { id } = req.params;
     
@@ -231,7 +232,7 @@ app.put('/api/participants/:id/generate', async (req, res) => {
     }
 });
 
-// GET - Recherche par concordance exacte de chaîne QR Code
+// GET - Récupérer un participant par QR code
 app.get('/api/participants/qr/:qrCode', async (req, res) => {
     const { qrCode } = req.params;
     
@@ -253,7 +254,7 @@ app.get('/api/participants/qr/:qrCode', async (req, res) => {
     }
 });
 
-// DELETE - Purge unitaire d'un participant
+// DELETE - Supprimer un participant
 app.delete('/api/participants/:id', async (req, res) => {
     const { id } = req.params;
     
@@ -266,7 +267,7 @@ app.delete('/api/participants/:id', async (req, res) => {
     }
 });
 
-// DELETE - Purge complète de la table
+// DELETE - Supprimer tous les participants
 app.delete('/api/participants', async (req, res) => {
     try {
         await pool.query('DELETE FROM participants');
@@ -278,7 +279,7 @@ app.delete('/api/participants', async (req, res) => {
 });
 
 // ============================================================
-// DÉMARRAGE ET ÉCOUTE DU SERVEUR
+// DÉMARRAGE
 // ============================================================
 server.listen(PORT, () => {
     console.log(`
