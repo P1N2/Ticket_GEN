@@ -140,10 +140,11 @@ app.post('/api/participants', async (req, res) => {
 });
 
 // POST - Ajouter plusieurs participants (import CSV)
+// POST - Ajouter plusieurs participants (import CSV)
 app.post('/api/participants/batch', async (req, res) => {
     const participantsList = req.body;
     
-    if (!participantsList || participantsList.length === 0) {
+    if (!participantsList || !Array.isArray(participantsList) || participantsList.length === 0) {
         res.status(400).json({ error: 'Aucun participant à ajouter' });
         return;
     }
@@ -153,6 +154,12 @@ app.post('/api/participants/batch', async (req, res) => {
 
     for (const p of participantsList) {
         const targetNom = p.nomPrénom || p.nom_prenom;
+        
+        // SÉCURITÉ : Ignorer les lignes vides ou sans nom pour éviter le crash 502
+        if (!targetNom || typeof targetNom !== 'string') {
+            continue; 
+        }
+
         const qrCode = `TICKET_${Date.now()}_${Math.random().toString(36).substr(2, 8)}_${targetNom.replace(/\s/g, '')}`;
         try {
             const result = await pool.query(
@@ -163,7 +170,7 @@ app.post('/api/participants/batch', async (req, res) => {
                     targetNom, 
                     p.dateNaissance || p.date_naissance || '', 
                     p.lieuNaissance || p.lieu_naissance || '', 
-                    p.age || null, 
+                    p.age ? parseInt(p.age, 10) : null, // Sécurité conversion d'âge
                     p.égliseProvenance || p.eglise_provenance || '', 
                     p.numéroTéléphone || p.numero_telephone || ''
                 ]
@@ -177,7 +184,7 @@ app.post('/api/participants/batch', async (req, res) => {
             if (err.code === '23505') {
                 duplicates.push(targetNom);
             } else {
-                console.error('Erreur batch participant:', err.message);
+                console.error('Erreur ligne batch participant:', err.message);
             }
         }
     }
