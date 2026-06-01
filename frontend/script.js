@@ -723,10 +723,15 @@ async function requestCameraAndStart() {
 }
 
 async function onScanSuccess(decodedText) {
+  // 1. Arrêt immédiat pour stabiliser la lecture et éviter les erreurs de flux
+  await stopScanner();
+  
   if (navigator.vibrate) navigator.vibrate(100);
 
   try {
-    const data = JSON.parse(decodedText);
+    // Nettoyage au cas où des caractères invisibles seraient présents
+    const cleanText = decodedText.trim();
+    const data = JSON.parse(cleanText);
     
     if (!data.id || !data.nom) {
       showScanResult('error', 'Format Invalide', 'Ce QR Code ne provient pas de l\'application UJEEBN.');
@@ -761,6 +766,8 @@ async function onScanSuccess(decodedText) {
   } catch (e) {
     console.error("Erreur d'analyse QR Code :", e);
     showScanResult('error', 'Erreur de Lecture', 'Impossible de décoder les données du QR Code.');
+    // On ne bloque plus l'utilisateur avec une erreur si le scan échoue.
+    // L'arrêt du scanner suffit à stopper le cycle d'erreurs.
   }
 }
 

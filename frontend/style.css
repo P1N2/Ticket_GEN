@@ -1682,3 +1682,11 @@ input { font-family: inherit; }
   border-radius: 4px;
   opacity: .4;
 }
+#reader {
+  width: 100%;
+  min-height: 250px;
+  background: #f0f0f0; /* Couleur de fond en attendant le chargement de la caméra */
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
