@@ -757,7 +757,7 @@ async function onScanSuccess(decodedText) {
     // Mise à jour
     if (!useLocalStorage) {
       await apiFetch(`/api/participants/${p.id}/scan`, {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scanned: true })
       });
