@@ -1135,6 +1135,7 @@ input { font-family: inherit; }
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,.65);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   z-index: 200;
   align-items: center;
@@ -1148,8 +1149,8 @@ input { font-family: inherit; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 18px;
-  width: 100%;
-  max-width: 480px;
+  width: 95% !important;        /* Prend presque tout l'écran sur mobile */
+  max-width: 690px !important;  /* S'élargit sur PC pour accueillir les 650px du ticket */
   box-shadow: 0 20px 60px rgba(0,0,0,.6);
   overflow: hidden;
 }
@@ -1207,67 +1208,30 @@ input { font-family: inherit; }
 
 /* Ticket preview inside modal */
 .ticket-preview {
-  padding: 1.4rem;
+  padding: 1rem;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start; /* Aligne à gauche sur mobile pour permettre le scroll */
+  overflow-x: auto;            /* Force l'apparition d'une barre de défilement horizontale sur mobile sans couper le contenu */
+  width: 100%;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch; /* Défilement fluide sur iOS (iPhone) */
 }
 
-.ticket-wrapper {
-  background: #fff;
-  color: #111;
-  border-radius: 12px;
+/* Empêche le navigateur mobile d'écraser la largeur réelle du ticket (650px) */
+.ticket-preview > div {
+  flex-shrink: 0 !important;
+  margin: 0 auto !important;
+}
+
+/* Ajustement de la boîte modale pour qu'elle s'adapte sur PC et Mobile */
+.modal-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  width: 95% !important;        /* Prend toute la largeur disponible sur écran de téléphone */
+  max-width: 690px !important;  /* S'élargit sur ordinateur pour englober confortablement le ticket */
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
   overflow: hidden;
-  font-family: var(--font-body);
-}
-
-.ticket-top {
-  background: #111;
-  color: #fff;
-  padding: 1rem 1.2rem;
-  text-align: center;
-}
-
-.ticket-top h2 {
-  font-family: var(--font-head);
-  font-size: 1rem;
-  font-weight: 800;
-  letter-spacing: .05em;
-  margin-bottom: .2rem;
-}
-
-.ticket-top p { font-size: .75rem; color: rgba(255,255,255,.6); }
-
-.ticket-body-inner {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem 1.2rem;
-}
-
-.ticket-info-block { flex: 1; }
-.ticket-name-big { font-family: var(--font-head); font-size: 1.1rem; font-weight: 800; color: #000; margin-bottom: .5rem; }
-
-.ticket-info-row {
-  display: flex; align-items: center; gap: .3rem;
-  font-size: .75rem; color: #555; margin-bottom: .3rem;
-}
-
-.ticket-info-row .material-icons-round { font-size: .9rem; color: #999; }
-
-.ticket-qr-block { text-align: center; }
-.ticket-qr-block p { font-size: .65rem; color: #999; margin-top: .3rem; }
-
-.ticket-accent-bar {
-  height: 5px;
-  background: linear-gradient(90deg, #F6C90E, #E8B800);
-}
-
-.ticket-foot {
-  background: #f8f8f8;
-  padding: .7rem 1.2rem;
-  text-align: center;
-  font-size: .7rem;
-  color: #888;
-  font-style: italic;
 }
 
 /* Scan Result Modal */
