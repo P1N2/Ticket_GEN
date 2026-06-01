@@ -40,8 +40,8 @@ async function loadParticipants() {
       participants = [
         { id: 1, nom: 'Jean Dupont', dateNaissance: '15/03/2000 à Niamey', eglise: 'Baptiste de Niamey', numero: '90123456', scanned: false, ticketGenerated: true },
         { id: 2, nom: 'Marie Coulibaly', dateNaissance: '22/07/1998 à Dosso', eglise: 'Assemblées de Dieu', numero: '98765432', scanned: true, ticketGenerated: true },
-        { id: 3, nom: "Amadou Issaka', dateNaissance: '10/12/2001 à Zinder', eglise: 'Évangélique de Zinder', numero: '91234567', scanned: false, ticketGenerated: false },
-        { id: 4, nom: 'Fatima Zakari', dateNaissance: '05/05/1999 à Maradi', eglise: 'Cathédrale Saint-Jean', numero: '92345678', scanned: false, ticketGenerated: false }
+        { id: 3, nom: 'Amadou Issaka', dateNaissance: '10/12/2001 à Zinder', eglise: 'Évangélique de Zinder', numero: '91234567', scanned: false, ticketGenerated: true },
+        { id: 4, nom: 'Fatima Zakari', dateNaissance: '05/05/1999 à Maradi', eglise: 'Cathédrale Saint-Jean', numero: '92345678', scanned: false, ticketGenerated: true }
       ];
       localStorage.setItem('ujeebn_participants', JSON.stringify(participants));
     }
@@ -161,28 +161,26 @@ function switchView(name) {
 // STATS & DASHBOARD
 // ═══════════════════════════════════════════════
 function refreshAll() {
-  const total   = participants.length;
-  const tickets = participants.filter(p => p.ticketGenerated).length;
+  const total = participants.length;
   const scanned = participants.filter(p => p.scanned).length;
-  const pending = participants.filter(p => !p.ticketGenerated).length;
 
+  // Modification : Les tickets générés sont toujours égaux au total des participants enregistrés
   setText('#kpi-total', total);
-  setText('#kpi-tickets', tickets);
+  setText('#kpi-tickets', total);
   setText('#kpi-scanned', scanned);
-  setText('#kpi-pending', pending);
+  setText('#kpi-pending', 0); // Toujours 0 en attente
   setText('#nav-badge-total', total);
 
-  const tPct = total ? Math.round(tickets / total * 100) : 0;
   const sPct = total ? Math.round(scanned / total * 100) : 0;
 
-  setText('#kpi-tickets-pct', `${tPct}% des inscrits`);
+  setText('#kpi-tickets-pct', `100% des inscrits`);
   setText('#kpi-scanned-pct', `${sPct}% présents`);
 
   setText('#progress-label', `${scanned} / ${total}`);
-  setText('#progress-tickets-label', `${tickets} / ${total}`);
+  setText('#progress-tickets-label', `${total} / ${total}`);
 
   qs('#progress-fill').style.width = `${sPct}%`;
-  qs('#progress-tickets-fill').style.width = `${tPct}%`;
+  qs('#progress-tickets-fill').style.width = `100%`;
 
   renderRecentParticipants();
 }
@@ -203,8 +201,8 @@ function renderRecentParticipants() {
         <div class="recent-name">${esc(p.nom)}</div>
         <div class="recent-church">${esc(p.eglise || '—')}</div>
       </div>
-      <span class="recent-status ${p.scanned ? 'status-scanned' : p.ticketGenerated ? 'status-ready' : 'status-pending'}">
-        ${p.scanned ? '✓ Scanné' : p.ticketGenerated ? '🎫 Ticket' : '📝 Inscrit'}
+      <span class="recent-status ${p.scanned ? 'status-scanned' : 'status-ready'}">
+        ${p.scanned ? '✓ Scanné' : '🎫 Ticket'}
       </span>
     </div>
   `).join('');
@@ -225,8 +223,8 @@ function renderParticipantsTable() {
   }
 
   if (currentFilter === 'scanned') list = list.filter(p => p.scanned);
-  else if (currentFilter === 'ticket') list = list.filter(p => p.ticketGenerated && !p.scanned);
-  else if (currentFilter === 'pending') list = list.filter(p => !p.ticketGenerated);
+  else if (currentFilter === 'ticket') list = list.filter(p => !p.scanned);
+  else if (currentFilter === 'pending') list = []; // Plus rien n'est en attente
 
   setText('#table-count', `${list.length} participant(s)`);
 
@@ -243,8 +241,8 @@ function renderParticipantsTable() {
       <td>${esc(p.eglise || '—')}</td>
       <td>${esc(p.dateNaissance || '—')}</td>
       <td>
-        <span class="recent-status ${p.scanned ? 'status-scanned' : p.ticketGenerated ? 'status-ready' : 'status-pending'}">
-          ${p.scanned ? '✓ Scanné' : p.ticketGenerated ? '🎫 Prêt' : '📝 Inscrit'}
+        <span class="recent-status ${p.scanned ? 'status-scanned' : 'status-ready'}">
+          ${p.scanned ? '✓ Scanné' : '🎫 Prêt'}
         </span>
       </td>
       <td>
@@ -292,20 +290,7 @@ async function deleteAll() {
 }
 
 async function generateAllTickets() {
-  const untreated = participants.filter(p => !p.ticketGenerated);
-  if (untreated.length === 0) return alert('Tous les tickets ont déjà été générés !');
-  if (!useLocalStorage) {
-    try {
-      await Promise.all(untreated.map(p => apiFetch(`/api/participants/${p.id}/generate`, { method: 'PUT' })));
-    } catch (err) {
-      console.error(err);
-      return alert('Erreur lors de la génération de tous les tickets.');
-    }
-  }
-  untreated.forEach(p => p.ticketGenerated = true);
-  saveParticipants();
-  renderParticipantsTable();
-  alert(`✅ ${untreated.length} tickets générés !`);
+  alert('Tous les tickets de vos participants actifs sont valides et disponibles !');
 }
 
 // ═══════════════════════════════════════════════
@@ -326,8 +311,8 @@ function renderTicketsGrid() {
           <div class="ticket-mini-church">${esc(p.eglise || '—')}</div>
         </div>
       </div>
-      <span class="ticket-mini-status ${p.scanned ? 'status-scanned' : p.ticketGenerated ? 'status-ready' : 'status-pending'}">
-        ${p.scanned ? '✓ Scanné' : p.ticketGenerated ? '🎫 Ticket généré' : '📝 Pas de ticket'}
+      <span class="ticket-mini-status ${p.scanned ? 'status-scanned' : 'status-ready'}">
+        ${p.scanned ? '✓ Scanné' : '🎫 Ticket généré'}
       </span>
       <div class="ticket-mini-actions">
         <button class="btn-ticket-action btn-ticket-view" onclick="openTicketModal(${p.id})">
@@ -348,7 +333,6 @@ async function openTicketModal(id) {
 
   const qrData = JSON.stringify({ id: p.id, nom: p.nom });
   
-  // Extraction propre des initiales basée sur les espaces du nom complet
   const parts = p.nom.trim().split(' ');
   const initials = parts.length > 1 
     ? (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase() 
@@ -356,37 +340,20 @@ async function openTicketModal(id) {
 
   qs('#ticket-to-export').innerHTML = buildTicketHTML(p, initials);
 
-  // Injection sécurisée du QR Code adapté au fond blanc
   setTimeout(() => {
     const container = document.getElementById('ticket-qr-code');
     if (container) {
       container.innerHTML = '';
       new QRCode(container, {
         text: qrData,
-        width: 150,
-        height: 150,
+        width: 140,
+        height: 140,
         colorDark: "#111111",
-        colorLight: "#ffffff",
+        colorLight: "#F6C90E", // Adapté sur le fond jaune de la partie QR
         correctLevel: QRCode.CorrectLevel.H
       });
     }
   }, 80);
-
-  // APRÈS
-  if (!p.ticketGenerated) {
-    if (!useLocalStorage) {
-      try {
-        await apiFetch(`/api/participants/${p.id}/generate`, { method: 'PUT' });
-        await loadParticipants();
-      } catch (err) {
-        console.error(err);
-        alert('Impossible de marquer le ticket comme généré.');
-      }
-    } else {
-      p.ticketGenerated = true;
-      saveParticipants();
-    }
-  }
 
   qs('#ticket-modal').classList.add('active');
 }
@@ -394,105 +361,98 @@ async function openTicketModal(id) {
 function buildTicketHTML(p, initials) {
   return `
   <div id="ticket-inner" style="
-    width: 420px;
+    width: 650px;
+    height: 280px;
     background: #ffffff;
-    border-radius: 24px;
+    border-radius: 20px;
     overflow: hidden;
     font-family: 'DM Sans', Arial, sans-serif;
-    box-shadow: 0 20px 60px rgba(0,0,0,.15);
+    box-shadow: 0 20px 50px rgba(0,0,0,.15);
     margin: 0 auto;
+    display: flex;
     text-align: left;
+    position: relative;
   ">
     <div style="
-      background: #F6C90E;
-      padding: 28px 28px 20px;
+      flex: 1;
+      padding: 24px 28px;
       display: flex;
-      align-items: center;
+      flex-direction: column;
       justify-content: space-between;
     ">
       <div>
-        <div style="font-family:'Syne',Arial,sans-serif; font-size:.7rem; font-weight:800; letter-spacing:.12em; color:#111; text-transform:uppercase;">Camp Biblique UJEEBN</div>
-        <div style="font-family:'Syne',Arial,sans-serif; font-size:2.8rem; font-weight:900; color:#111; line-height:1; margin-top:2px;">2026</div>
-        <div style="font-size:.72rem; color:#333; margin-top:6px; font-weight:500;">36ème édition · Dosso · 02–07 Août</div>
-      </div>
-      <div style="
-        width:56px; height:56px;
-        background:#111;
-        border-radius:50%;
-        display:flex; align-items:center; justify-content:center;
-        font-family:'Syne',Arial,sans-serif;
-        font-size:1.4rem; font-weight:900;
-        color:#F6C90E;
-        flex-shrink:0;
-      ">${initials}</div>
-    </div>
-
-    <div style="
-      background: #111;
-      height: 6px;
-      background-image: repeating-linear-gradient(90deg, #F6C90E 0, #F6C90E 18px, #111 18px, #111 28px);
-    "></div>
-
-    <div style="padding: 24px 28px 20px; background:#ffffff;">
-      <div style="font-family:'Syne',Arial,sans-serif; font-size:1.55rem; font-weight:800; color:#111; line-height:1.15; margin-bottom:20px; word-break:break-word;">${esc(p.nom)}</div>
-
-      <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:22px;">
-        <div style="display:flex; align-items:center; gap:10px;">
-          <div style="width:34px; height:34px; background:#f5f5f5; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-            <span class="material-icons-round" style="font-size:.95rem; color:#555;">cake</span>
-          </div>
-          <div>
-            <div style="font-size:.65rem; color:#aaa; text-transform:uppercase; letter-spacing:.08em; font-weight:600; line-height:1.2;">Date de naissance</div>
-            <div style="font-size:.9rem; color:#111; font-weight:600;">${esc(p.dateNaissance || '—')}</div>
-          </div>
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+          <div style="font-family:'Syne',Arial,sans-serif; font-size:.68rem; font-weight:800; letter-spacing:.12em; color:#aaa; text-transform:uppercase;">Camp Biblique UJEEBN · 2026</div>
+          <span style="font-size: .65rem; background: #f5f5f5; padding: 3px 8px; border-radius: 6px; font-weight: 600; color: #666;">36e Édition</span>
         </div>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <div style="width:34px; height:34px; background:#f5f5f5; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-            <span class="material-icons-round" style="font-size:.95rem; color:#555;">account_balance</span>
-          </div>
-          <div>
-            <div style="font-size:.65rem; color:#aaa; text-transform:uppercase; letter-spacing:.08em; font-weight:600; line-height:1.2;">Église de provenance</div>
-            <div style="font-size:.9rem; color:#111; font-weight:600;">${esc(p.eglise || '—')}</div>
-          </div>
+        
+        <div style="font-family:'Syne',Arial,sans-serif; font-size:1.6rem; font-weight:800; color:#111; line-height:1.2; max-height:76px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; margin-bottom:16px;">
+          ${esc(p.nom)}
         </div>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <div style="width:34px; height:34px; background:#F6C90E; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-            <span class="material-icons-round" style="font-size:.95rem; color:#111;">tag</span>
+
+        <div style="display: flex; gap: 24px;">
+          <div>
+            <div style="font-size:.62rem; color:#aaa; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:2px;">Date de Naissance</div>
+            <div style="font-size:.85rem; color:#111; font-weight:600;">${esc(p.dateNaissance || '—')}</div>
           </div>
           <div>
-            <div style="font-size:.65rem; color:#aaa; text-transform:uppercase; letter-spacing:.08em; font-weight:600; line-height:1.2;">Numéro de ticket</div>
-            <div style="font-size:.9rem; color:#111; font-weight:700;">#${String(p.id).padStart(4, '0')}</div>
+            <div style="font-size:.62rem; color:#aaa; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:2px;">Église de provenance</div>
+            <div style="font-size:.85rem; color:#111; font-weight:600;">${esc(p.eglise || '—')}</div>
           </div>
         </div>
       </div>
 
-      <div style="border-top: 2px dashed #e5e5e5; margin: 0 -4px 20px;"></div>
-
-      <div style="display:flex; flex-direction:column; align-items:center; gap:10px;">
-        <div style="
-          padding: 14px;
-          background: #ffffff;
-          border: 2px solid #111;
-          border-radius: 16px;
-          line-height: 0;
-          display: inline-block;
-        ">
-          <div id="ticket-qr-code" style="width:150px; height:150px; display:flex; align-items:center; justify-content:center;"></div>
-        </div>
-        <div style="font-size:.72rem; color:#aaa; letter-spacing:.06em; text-align:center; font-weight:500;">Scanner ce code à l'entrée du camp</div>
+      <div style="font-size: .72rem; color: #888; font-style: italic; border-top: 1px solid #f0f0f0; padding-top: 10px; font-weight: 500;">
+        "Vous êtes la lumière du monde" — Mt 5:14
       </div>
     </div>
 
     <div style="
-      background: #111;
-      padding: 14px 28px;
-      text-align: center;
-      font-size: .72rem;
-      color: rgba(255,255,255,.6);
-      letter-spacing: .04em;
-      font-weight: 500;
+      width: 0px;
+      border-left: 2px dashed #111111;
+      position: relative;
+      z-index: 10;
     ">
-      "Vous êtes la lumière du monde" — Matthieu 5:14
+      <div style="position: absolute; top: -10px; left: -10px; width: 18px; height: 18px; background: rgba(0,0,0,0.85); border-radius: 50%;"></div>
+      <div style="position: absolute; bottom: -10px; left: -10px; width: 18px; height: 18px; background: rgba(0,0,0,0.85); border-radius: 50%;"></div>
+    </div>
+
+    <div style="
+      width: 210px;
+      background: #F6C90E;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    ">
+      <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 6px;">
+        <div style="font-family:'Syne',Arial,sans-serif; font-size:1.1rem; font-weight:900; color:#111;">#${String(p.id).padStart(4, '0')}</div>
+        <div style="
+          width:34px; height:34px;
+          background:#111;
+          border-radius:50%;
+          display:flex; align-items:center; justify-content:center;
+          font-family:'Syne',Arial,sans-serif;
+          font-size:0.85rem; font-weight:900;
+          color:#F6C90E;
+        ">${initials}</div>
+      </div>
+
+      <div style="
+        padding: 8px;
+        background: #F6C90E;
+        border: 2px solid #111;
+        border-radius: 12px;
+        line-height: 0;
+      ">
+        <div id="ticket-qr-code" style="width:140px; height:140px;"></div>
+      </div>
+
+      <div style="font-family:'Syne',Arial,sans-serif; font-size:0.62rem; font-weight:700; color:#111; text-transform:uppercase; letter-spacing:0.04em; text-align:center;">
+        Dosso · 02-07 Août 2026
+      </div>
     </div>
   </div>
   `;
@@ -503,10 +463,10 @@ function downloadTicket() {
   if (!target || !currentTicketParticipant) return;
 
   html2canvas(target, {
-    backgroundColor: null, // Conserve le fond blanc des styles en ligne sans forcer du noir ou transparent
-    scale: 2,              // Double la résolution pour un rendu parfait sur mobile/impression
+    backgroundColor: null,
+    scale: 2,
     logging: false,
-    useCORS: true          // Évite le blocage inter-origine des icônes ou polices chargées dynamiquement
+    useCORS: true
   }).then(canvas => {
     const link = document.createElement('a');
     link.download = `Ticket_${currentTicketParticipant.nom.replace(/\s/g, '_')}.png`;
@@ -573,6 +533,9 @@ function parseCSVLine(line) {
 
 function clean(v) { return v ? v.replace(/^"|"$/g, '').trim() : ''; }
 
+// ═══════════════════════════════════════════════
+// ADD MANUAL
+// ═══════════════════════════════════════════════
 function showCSVPreview() {
   const newCount = pendingCSVData.filter(p => !p.isDuplicate).length;
   const dupCount = pendingCSVData.filter(p => p.isDuplicate).length;
@@ -599,12 +562,15 @@ async function confirmImport() {
   const toAdd = pendingCSVData.filter(p => !p.isDuplicate);
   if (toAdd.length === 0) return alert('Aucun nouveau participant à importer');
 
+  // Modification : Les éléments importés reçoivent directement l'état de ticket généré valide
+  const preparedData = toAdd.map(p => ({ ...p, ticketGenerated: true }));
+
   if (!useLocalStorage) {
     try {
       await apiFetch('/api/participants/batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(toAdd)
+        body: JSON.stringify(preparedData)
       });
       await loadParticipants();
     } catch (err) {
@@ -612,7 +578,7 @@ async function confirmImport() {
       return alert('Erreur lors de l’import CSV.');
     }
   } else {
-    toAdd.forEach(p => {
+    preparedData.forEach(p => {
       participants.push({
         id: getNextId(),
         nom: p.nom,
@@ -620,7 +586,7 @@ async function confirmImport() {
         eglise: p.eglise,
         numero: p.numero,
         scanned: false,
-        ticketGenerated: false
+        ticketGenerated: true
       });
     });
     saveParticipants();
@@ -628,7 +594,7 @@ async function confirmImport() {
 
   cancelImport();
   switchView('participants');
-  alert(`✅ ${toAdd.length} participants importés !`);
+  alert(`✅ ${toAdd.length} participants importés avec succès !`);
 }
 
 function cancelImport() {
@@ -637,9 +603,6 @@ function cancelImport() {
   qs('#csv-file').value = '';
 }
 
-// ═══════════════════════════════════════════════
-// ADD MANUAL
-// ═══════════════════════════════════════════════
 async function addManualParticipant() {
   const nom = qs('#manual-nom').value.trim();
   if (!nom) return alert('❌ Le nom est obligatoire');
@@ -647,11 +610,13 @@ async function addManualParticipant() {
     return alert(`⚠️ "${nom}" est déjà inscrit`);
   }
 
+  // Modification : Création avec le statut ticketGenerated activé par défaut
   const payload = {
     nom,
     dateNaissance: qs('#manual-date').value.trim(),
     eglise: qs('#manual-eglise').value.trim(),
-    numero: qs('#manual-numero').value.trim()
+    numero: qs('#manual-numero').value.trim(),
+    ticketGenerated: true
   };
 
   if (!useLocalStorage) {
@@ -668,7 +633,7 @@ async function addManualParticipant() {
         eglise: payload.eglise,
         numero: payload.numero,
         scanned: false,
-        ticketGenerated: false
+        ticketGenerated: true
       });
       saveParticipants();
     } catch (err) {
@@ -683,7 +648,7 @@ async function addManualParticipant() {
       eglise: payload.eglise,
       numero: payload.numero,
       scanned: false,
-      ticketGenerated: false
+      ticketGenerated: true
     });
     saveParticipants();
   }
