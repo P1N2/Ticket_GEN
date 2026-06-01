@@ -25,11 +25,28 @@ const io = new Server(server, {
     }
 });
 
-// Helper to broadcast participants state to connected sockets
+// Helper mapping snake_case DB → camelCase frontend
+function mapParticipant(r) {
+    return {
+        id: r.id,
+        nom: r.nom_prenom,
+        dateNaissance: r.date_naissance,
+        lieuNaissance: r.lieu_naissance,
+        age: r.age,
+        eglise: r.eglise_provenance,
+        numero: r.numero_telephone,
+        qrCode: r.qr_code,
+        scanned: r.scanned,
+        ticketGenerated: r.ticket_generated,
+        createdAt: r.created_at
+    };
+}
+
+// Helper pour broadcaster les participants via Socket.IO
 function broadcastParticipants() {
     pool.query('SELECT * FROM participants ORDER BY created_at DESC')
         .then(result => {
-            io.emit('participants:changed', result.rows);
+            io.emit('participants:changed', result.rows.map(mapParticipant));
         })
         .catch(err => {
             console.error('❌ Erreur broadcast participants:', err.message);
@@ -41,7 +58,6 @@ function broadcastParticipants() {
 // ============================================================
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    // On active la configuration SSL pour accepter le certificat auto-signé de Supabase
     ssl: {
         rejectUnauthorized: false
     }
@@ -49,7 +65,6 @@ const pool = new Pool({
 
 async function initDb() {
     try {
-        // Création de la table avec des noms de colonnes standardisés pour PostgreSQL
         await pool.query(`
             CREATE TABLE IF NOT EXISTS participants (
                 id SERIAL PRIMARY KEY,
@@ -86,7 +101,7 @@ initDb();
 app.get('/api/participants', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM participants ORDER BY created_at DESC');
-        res.json(result.rows);
+        res.json(result.rows.map(mapParticipant));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -140,7 +155,6 @@ app.post('/api/participants', async (req, res) => {
 });
 
 // POST - Ajouter plusieurs participants (import CSV)
-// POST - Ajouter plusieurs participants (import CSV)
 app.post('/api/participants/batch', async (req, res) => {
     const participantsList = req.body;
     
@@ -153,11 +167,11 @@ app.post('/api/participants/batch', async (req, res) => {
     let duplicates = [];
 
     for (const p of participantsList) {
-        const targetNom = p.nomPrénom || p.nom_prenom;
+        // Support de tous les formats de noms de champs possibles
+        const targetNom = p.nomPrénom || p.nom_prenom || p.nom;
         
-        // SÉCURITÉ : Ignorer les lignes vides ou sans nom pour éviter le crash 502
         if (!targetNom || typeof targetNom !== 'string') {
-            continue; 
+            continue;
         }
 
         const qrCode = `TICKET_${Date.now()}_${Math.random().toString(36).substr(2, 8)}_${targetNom.replace(/\s/g, '')}`;
@@ -167,12 +181,13 @@ app.post('/api/participants/batch', async (req, res) => {
                  VALUES ($1, $2, $3, $4, $5, $6, $7)
                  ON CONFLICT (qr_code) DO NOTHING`,
                 [
-                    targetNom, 
-                    p.dateNaissance || p.date_naissance || '', 
-                    p.lieuNaissance || p.lieu_naissance || '', 
-                    p.age ? parseInt(p.age, 10) : null, // Sécurité conversion d'âge
-                    p.égliseProvenance || p.eglise_provenance || '', 
-                    p.numéroTéléphone || p.numero_telephone || ''
+                    targetNom,
+                    p.dateNaissance || p.date_naissance || '',
+                    p.lieuNaissance || p.lieu_naissance || '',
+                    p.age ? parseInt(p.age, 10) : null,
+                    p.égliseProvenance || p.eglise_provenance || p.eglise || '',
+                    p.numéroTéléphone || p.numero_telephone || p.numero || '',
+                    qrCode
                 ]
             );
             if (result.rowCount > 0) {
@@ -248,7 +263,7 @@ app.get('/api/participants/qr/:qrCode', async (req, res) => {
             return;
         }
         
-        res.json(row);
+        res.json(mapParticipant(row));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
