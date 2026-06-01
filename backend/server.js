@@ -1,5 +1,6 @@
 const express = require('express');
-const sqlite3 = require('sqlite3');
+require('dotenv').config();
+const { Pool } = require('pg');
 const cors = require('cors');
 const path = require('path');
 const http = require('http');
@@ -23,122 +24,123 @@ const io = new Server(server, {
         credentials: true
     }
 });
-app.use(express.json());
-app.use(express.static(path.join(__dirname, '../frontend')));
 
 // Helper to broadcast participants state to connected sockets
 function broadcastParticipants() {
-    db.all("SELECT * FROM participants ORDER BY createdAt DESC", (err, rows) => {
-        if (!err) {
-            io.emit('participants:changed', rows);
-        }
-    });
+    pool.query('SELECT * FROM participants ORDER BY created_at DESC')
+        .then(result => {
+            io.emit('participants:changed', result.rows);
+        })
+        .catch(err => {
+            console.error('❌ Erreur broadcast participants:', err.message);
+        });
 }
 
 // ============================================================
-// BASE DE DONNÉES SQLITE
+// BASE DE DONNÉES POSTGRESQL
 // ============================================================
-const db = new sqlite3.Database(path.join(__dirname, 'tickets.db'));
-
-// Créer la table participants
-db.run(`
-    CREATE TABLE IF NOT EXISTS participants (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nom TEXT NOT NULL,
-        dateNaissance TEXT,
-        eglise TEXT,
-        numero TEXT,
-        qrCode TEXT UNIQUE,
-        scanned BOOLEAN DEFAULT 0,
-        ticketGenerated BOOLEAN DEFAULT 0,
-        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-`, (err) => {
-    if (err) {
-        console.error('❌ Erreur création table:', err.message);
-    } else {
-        console.log('✅ Base de données SQLite prête');
-        
-        // Créer l'index pour éviter les doublons
-        db.run(`CREATE INDEX IF NOT EXISTS idx_nom ON participants(nom)`);
-        db.run(`CREATE INDEX IF NOT EXISTS idx_scanned ON participants(scanned)`);
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    // On active la configuration SSL pour accepter le certificat auto-signé de Supabase
+    ssl: {
+        rejectUnauthorized: false
     }
 });
+
+async function initDb() {
+    try {
+        // Création de la table avec des noms de colonnes standardisés pour PostgreSQL
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS participants (
+                id SERIAL PRIMARY KEY,
+                nom_prenom TEXT NOT NULL,
+                date_naissance TEXT,
+                lieu_naissance TEXT,
+                age INTEGER,
+                eglise_provenance TEXT,
+                numero_telephone TEXT,
+                qr_code TEXT UNIQUE,
+                scanned BOOLEAN DEFAULT FALSE,
+                ticket_generated BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        `);
+
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_nom ON participants(nom_prenom)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_scanned ON participants(scanned)`);
+
+        console.log('✅ Base de données PostgreSQL prête');
+    } catch (err) {
+        console.error('❌ Erreur initialisation base de données PostgreSQL:', err.message);
+        process.exit(1);
+    }
+}
+
+initDb();
 
 // ============================================================
 // API ROUTES
 // ============================================================
 
 // GET - Récupérer tous les participants
-app.get('/api/participants', (req, res) => {
-    db.all("SELECT * FROM participants ORDER BY createdAt DESC", (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json(rows);
-    });
+app.get('/api/participants', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM participants ORDER BY created_at DESC');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // GET - Statistiques
-app.get('/api/stats', (req, res) => {
-    db.get(`
-        SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN scanned = 1 THEN 1 ELSE 0 END) as scanned,
-            SUM(CASE WHEN ticketGenerated = 1 THEN 1 ELSE 0 END) as ticketsGenerated
-        FROM participants
-    `, (err, row) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json(row);
-    });
+app.get('/api/stats', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN scanned = TRUE THEN 1 ELSE 0 END) as scanned,
+                SUM(CASE WHEN ticket_generated = TRUE THEN 1 ELSE 0 END) as ticketsgenerated
+            FROM participants
+        `);
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // POST - Ajouter un participant (manuel)
-app.post('/api/participants', (req, res) => {
-    const { nom, dateNaissance, eglise, numero } = req.body;
+app.post('/api/participants', async (req, res) => {
+    const { nomPrénom, dateNaissance, lieuNaissance, age, égliseProvenance, numéroTéléphone } = req.body;
     
-    if (!nom) {
-        res.status(400).json({ error: 'Le nom est obligatoire' });
+    if (!nomPrénom) {
+        res.status(400).json({ error: 'Le nom et prénom sont obligatoires' });
         return;
     }
     
-    // Vérifier doublon
-    db.get(`SELECT id FROM participants WHERE nom = ?`, [nom], (err, row) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        
-        if (row) {
-            res.status(409).json({ error: 'Doublon', message: `Le participant "${nom}" existe déjà` });
+    try {
+        const existing = await pool.query('SELECT id FROM participants WHERE nom_prenom = $1', [nomPrénom]);
+        if (existing.rows.length > 0) {
+            res.status(409).json({ error: 'Doublon', message: `Le participant "${nomPrénom}" existe déjà` });
             return;
         }
         
         const qrCode = `TICKET_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
-        
-        db.run(
-            `INSERT INTO participants (nom, dateNaissance, eglise, numero, qrCode) 
-             VALUES (?, ?, ?, ?, ?)`,
-            [nom, dateNaissance || '', eglise || '', numero || '', qrCode],
-            function(err) {
-                if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
-                }
-                res.json({ id: this.lastID, qrCode, success: true });
-                // broadcast
-                broadcastParticipants();
-            }
+        const result = await pool.query(
+            `INSERT INTO participants (nom_prenom, date_naissance, lieu_naissance, age, eglise_provenance, numero_telephone, qr_code)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             RETURNING id`,
+            [nomPrénom, dateNaissance || '', lieuNaissance || '', age || null, égliseProvenance || '', numéroTéléphone || '', qrCode]
         );
-    });
+        
+        res.json({ id: result.rows[0].id, qrCode, success: true });
+        broadcastParticipants();
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // POST - Ajouter plusieurs participants (import CSV)
-app.post('/api/participants/batch', (req, res) => {
+app.post('/api/participants/batch', async (req, res) => {
     const participantsList = req.body;
     
     if (!participantsList || participantsList.length === 0) {
@@ -146,123 +148,127 @@ app.post('/api/participants/batch', (req, res) => {
         return;
     }
     
-    const stmt = db.prepare(`
-        INSERT OR IGNORE INTO participants (nom, dateNaissance, eglise, numero, qrCode) 
-        VALUES (?, ?, ?, ?, ?)
-    `);
-    
     let successCount = 0;
     let duplicates = [];
-    
-    participantsList.forEach(p => {
-        const qrCode = `TICKET_${Date.now()}_${Math.random().toString(36).substr(2, 8)}_${p.nom.replace(/\s/g, '')}`;
-        stmt.run([p.nom, p.dateNaissance || '', p.eglise || '', p.numero || '', qrCode], function(err) {
-            if (!err && this.changes > 0) {
+
+    for (const p of participantsList) {
+        const targetNom = p.nomPrénom || p.nom_prenom;
+        const qrCode = `TICKET_${Date.now()}_${Math.random().toString(36).substr(2, 8)}_${targetNom.replace(/\s/g, '')}`;
+        try {
+            const result = await pool.query(
+                `INSERT INTO participants (nom_prenom, date_naissance, lieu_naissance, age, eglise_provenance, numero_telephone, qr_code)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                 ON CONFLICT (qr_code) DO NOTHING`,
+                [
+                    targetNom, 
+                    p.dateNaissance || p.date_naissance || '', 
+                    p.lieuNaissance || p.lieu_naissance || '', 
+                    p.age || null, 
+                    p.égliseProvenance || p.eglise_provenance || '', 
+                    p.numéroTéléphone || p.numero_telephone || ''
+                ]
+            );
+            if (result.rowCount > 0) {
                 successCount++;
-            } else if (err && err.message.includes('UNIQUE')) {
-                duplicates.push(p.nom);
+            } else {
+                duplicates.push(targetNom);
             }
-        });
-    });
+        } catch (err) {
+            if (err.code === '23505') {
+                duplicates.push(targetNom);
+            } else {
+                console.error('Erreur batch participant:', err.message);
+            }
+        }
+    }
     
-    stmt.finalize();
-    
-    setTimeout(() => {
-        res.json({ success: true, count: successCount, duplicates });
-        // broadcast new participants
-        broadcastParticipants();
-    }, 500);
+    res.json({ success: true, count: successCount, duplicates });
+    broadcastParticipants();
 });
 
 // PUT - Marquer un ticket comme scanné
-app.put('/api/participants/:id/scan', (req, res) => {
+app.put('/api/participants/:id/scan', async (req, res) => {
     const { id } = req.params;
     
-    // Vérifier si déjà scanné
-    db.get(`SELECT scanned, nom FROM participants WHERE id = ?`, [id], (err, row) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        
+    try {
+        const result = await pool.query('SELECT scanned, nom_prenom FROM participants WHERE id = $1', [id]);
+        const row = result.rows[0];
+
         if (!row) {
             res.status(404).json({ error: 'Participant non trouvé' });
             return;
         }
         
-        if (row.scanned === 1) {
-            res.json({ success: true, alreadyScanned: true, message: `${row.nom} a déjà été scanné` });
+        if (row.scanned) {
+            res.json({ success: true, alreadyScanned: true, message: `${row.nom_prenom} a déjà été scanné` });
             return;
         }
         
-        db.run(`UPDATE participants SET scanned = 1 WHERE id = ?`, [id], function(err) {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
-            res.json({ success: true, alreadyScanned: false, message: `${row.nom} a été validé` });
-            broadcastParticipants();
-        });
-    });
+        await pool.query('UPDATE participants SET scanned = TRUE WHERE id = $1', [id]);
+        res.json({ success: true, alreadyScanned: false, message: `${row.nom_prenom} a été validé` });
+        broadcastParticipants();
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // PUT - Marquer qu'un ticket a été généré
-app.put('/api/participants/:id/generate', (req, res) => {
+app.put('/api/participants/:id/generate', async (req, res) => {
     const { id } = req.params;
     
-    db.run(`UPDATE participants SET ticketGenerated = 1 WHERE id = ?`, [id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
+    try {
+        await pool.query('UPDATE participants SET ticket_generated = TRUE WHERE id = $1', [id]);
         res.json({ success: true });
         broadcastParticipants();
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // GET - Récupérer un participant par QR code
-app.get('/api/participants/qr/:qrCode', (req, res) => {
+app.get('/api/participants/qr/:qrCode', async (req, res) => {
     const { qrCode } = req.params;
     
-    db.get(`SELECT id, nom, dateNaissance, eglise, scanned FROM participants WHERE qrCode = ?`, [qrCode], (err, row) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        
+    try {
+        const result = await pool.query(
+            'SELECT id, nom_prenom, date_naissance, eglise_provenance, scanned FROM participants WHERE qr_code = $1',
+            [qrCode]
+        );
+        const row = result.rows[0];
+
         if (!row) {
             res.status(404).json({ error: 'QR Code non reconnu' });
             return;
         }
         
         res.json(row);
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // DELETE - Supprimer un participant
-app.delete('/api/participants/:id', (req, res) => {
+app.delete('/api/participants/:id', async (req, res) => {
     const { id } = req.params;
     
-    db.run(`DELETE FROM participants WHERE id = ?`, [id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
+    try {
+        await pool.query('DELETE FROM participants WHERE id = $1', [id]);
         res.json({ success: true });
         broadcastParticipants();
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // DELETE - Supprimer tous les participants
-app.delete('/api/participants', (req, res) => {
-    db.run(`DELETE FROM participants`, function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
+app.delete('/api/participants', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM participants');
         res.json({ success: true });
         broadcastParticipants();
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ============================================================
@@ -275,7 +281,7 @@ server.listen(PORT, () => {
     ├─────────────────────────────────────────────────────┤
     │   📡 API: http://localhost:${PORT}/api               │
     │   🌐 Frontend origin allowed: ${FRONTEND_ORIGIN}    │
-    │   📁 Base de données: tickets.db                    │
+    │   📁 Base de données: PostgreSQL                    │
     └─────────────────────────────────────────────────────┘
     `);
 });
