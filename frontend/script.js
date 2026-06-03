@@ -347,13 +347,13 @@ async function openTicketModal(id) {
     if (container) {
       container.innerHTML = '';
       new QRCode(container, {
-        text: qrData,
-        width: 140,
-        height: 140,
-        colorDark: "#111111",
-        colorLight: "#F6C90E",
-        correctLevel: QRCode.CorrectLevel.H
-      });
+          text: qrData,
+          width: 140,
+          height: 140,
+          colorDark: "#000000",
+          colorLight: "#ffffff",   // ← fond blanc = lecture universelle
+          correctLevel: QRCode.CorrectLevel.H
+});
     }
   }, 80);
 
@@ -443,12 +443,12 @@ function buildTicketHTML(p, initials) {
       </div>
 
       <div style="
-        padding: 8px;
-        background: #F6C90E;
-        border: 2px solid #111;
-        border-radius: 12px;
-        line-height: 0;
-      ">
+          padding: 8px;
+          background: #ffffff;
+          border: 2px solid #111;
+          border-radius: 12px;
+          line-height: 0;
+        ">
         <div id="ticket-qr-code" style="width:140px; height:140px;"></div>
       </div>
 
@@ -732,20 +732,30 @@ function onScanFailure(error) {
 
 // 2. Cette fonction gère le succès
 async function onScanSuccess(decodedText) {
-  // On arrête tout dès qu'on a un début de détection pour éviter les doublons
   await stopScanner();
   
   try {
     const cleanText = decodedText.trim();
-    const data = JSON.parse(cleanText);
-    
-    // Vérification basique
-    if (!data.id) throw new Error("Format invalide");
+    let participantId = null;
 
-    let p = participants.find(x => x.id === Number(data.id));
+    // Essai 1 : format JSON {"id":x,"nom":"..."}
+    try {
+      const data = JSON.parse(cleanText);
+      if (data.id) participantId = Number(data.id);
+    } catch (_) {
+      // Essai 2 : format direct "TICKET_xxxx_xxxx_Nom" → chercher par qrCode
+      const found = participants.find(x => x.qrCode === cleanText);
+      if (found) participantId = found.id;
+    }
 
+    if (!participantId) {
+      showScanResult('error', 'QR Invalide', `Format non reconnu : ${cleanText.slice(0, 40)}`);
+      return;
+    }
+
+    let p = participants.find(x => x.id === participantId);
     if (!p) {
-      showScanResult('error', 'Inconnu', 'Participant non trouvé.');
+      showScanResult('error', 'Inconnu', 'Participant non trouvé dans la liste.');
       return;
     }
 
@@ -754,7 +764,6 @@ async function onScanSuccess(decodedText) {
       return;
     }
 
-    // Mise à jour
     if (!useLocalStorage) {
       await apiFetch(`/api/participants/${p.id}/scan`, {
         method: 'PUT',
@@ -770,12 +779,9 @@ async function onScanSuccess(decodedText) {
     showScanResult('ok', 'Entrée Validée !', `✅ ${p.nom}`);
 
   } catch (e) {
-    // Si on arrive ici, c'est que le JSON n'était pas bon ou autre erreur
-    // On ne montre PAS de message d'erreur, on laisse l'utilisateur réessayer.
-    console.log("Lecture en cours...");
+    showScanResult('error', 'Erreur', `Impossible de lire ce QR : ${e.message}`);
   }
 }
-
 async function stopScanner() {
   if (html5QrCode) {
     try {
