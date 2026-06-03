@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ujeebn-tickets-v1';
+const CACHE_NAME = 'ujeebn-tickets-v' + Date.now();
 const urlsToCache = [
   '.',
   'index.html',
@@ -16,12 +16,8 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
   );
-});
-
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(response => response || fetch(event.request))
-  );
+  // Force l'activation immédiate sans attendre la fermeture des onglets
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
@@ -32,6 +28,12 @@ self.addEventListener('activate', event => {
           if (cache !== CACHE_NAME) return caches.delete(cache);
         })
       );
-    })
+    }).then(() => self.clients.claim()) // Prend le contrôle immédiatement
+  );
+});
+
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request).then(response => response || fetch(event.request))
   );
 });
