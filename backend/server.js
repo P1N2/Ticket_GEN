@@ -125,13 +125,19 @@ app.get('/api/stats', async (req, res) => {
 
 // POST - Ajouter un participant (manuel)
 app.post('/api/participants', async (req, res) => {
-    const { nomPrénom, dateNaissance, lieuNaissance, age, égliseProvenance, numéroTéléphone } = req.body;
-    
+    // Accepte toutes les variantes de noms de champs
+    const nomPrénom = req.body.nomPrénom || req.body.nom || req.body.nomPrenom;
+    const dateNaissance = req.body.dateNaissance || req.body.date_naissance || '';
+    const lieuNaissance = req.body.lieuNaissance || req.body.lieu_naissance || '';
+    const age = req.body.age || null;
+    const égliseProvenance = req.body.égliseProvenance || req.body.eglise || req.body.egliseProvenance || '';
+    const numéroTéléphone = req.body.numéroTéléphone || req.body.numero || req.body.numerotelephone || '';
+
     if (!nomPrénom) {
         res.status(400).json({ error: 'Le nom et prénom sont obligatoires' });
         return;
     }
-    
+
     try {
         const existing = await pool.query('SELECT id FROM participants WHERE nom_prenom = $1', [nomPrénom]);
         if (existing.rows.length > 0) {
