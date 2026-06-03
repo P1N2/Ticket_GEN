@@ -612,7 +612,7 @@ async function addManualParticipant() {
   }
 
   const payload = {
-    nom,
+    nomPrénom: nom, 
     dateNaissance: qs('#manual-date').value.trim(),
     eglise: qs('#manual-eglise').value.trim(),
     numero: qs('#manual-numero').value.trim(),
