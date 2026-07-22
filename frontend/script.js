@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════
 const ADMIN_USERNAME = 'admin';
 const ADMIN_PASSWORD = 'UJEEBN2026';
-const API_BASE_URL = 'https://ticket-gen-xjjy.onrender.com';
+const API_BASE_URL = 'https://ticket-gen-hna3.onrender.com';
 
 let participants = [];
 let currentFilter = 'all';
